@@ -1,0 +1,17 @@
+[
+  { "id": 1, "en": "apple", "ru": "яблоко", "level": "a1" },
+  { "id": 2, "en": "book", "ru": "книга", "level": "a1" },
+  { "id": 3, "en": "cat", "ru": "кошка", "level": "a1" },
+  { "id": 4, "en": "dog", "ru": "собака", "level": "a1" },
+  { "id": 5, "en": "house", "ru": "дом", "level": "a1" },
+  { "id": 6, "en": "beautiful", "ru": "красивый", "level": "a2" },
+  { "id": 7, "en": "challenge", "ru": "вызов", "level": "b2" },
+  { "id": 8, "en": "development", "ru": "разработка", "level": "b1" },
+  { "id": 9, "en": "freedom", "ru": "свобода", "level": "b1" },
+  { "id": 10, "en": "green", "ru": "зеленый", "level": "a1" },
+  { "id": 11, "en": "impossible", "ru": "невозможный", "level": "b2" },
+  { "id": 12, "en": "journey", "ru": "путешествие", "level": "b1" },
+  { "id": 13, "en": "knowledge", "ru": "знание", "level": "b2" },
+  { "id": 14, "en": "language", "ru": "язык", "level": "a2" },
+  { "id": 15, "en": "memory", "ru": "память", "level": "b1" }
+]
