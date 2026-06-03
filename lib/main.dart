@@ -2,13 +2,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_english_app/features/auth/cubit/auth_cubit.dart';
+import 'package:my_english_app/features/auth/cubit/auth_state.dart';
 import 'package:my_english_app/features/auth/ui/login_screen.dart';
+import 'package:my_english_app/features/main_tabs_screen.dart';
 import 'package:my_english_app/firebase_options.dart';
-import 'features/main_tabs_screen.dart';
 import 'features/learning/data/words_repository.dart';
 import 'features/learning/cubit/learning_cubit.dart';
 import 'features/dictionary/cubit/dictionary_cubit.dart';
-import 'features/auth/ui/login_screen.dart';
 
 void main() async {
   // Гарантируем, что внутренние связи Flutter с нативной платформой (Android/iOS)
@@ -48,7 +48,29 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
         ),
-        home: const LoginScreen(),
+        // home: const LoginScreen(),
+        home: BlocBuilder<AuthCubit, AuthState>(
+          builder: (context, state) {
+            if (state is AuthSuccess) {
+              // Если Firebase вернул активного пользователя — пускаем в приложение
+              return const MainTabsScreen();
+            }
+            
+            if (state is AuthLoading) {
+              // Пока Firebase проверяет токен, показываем спиннер
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFFA43032),
+                  ),
+                ),
+              );
+            }
+
+            // Если пользователь не авторизован (AuthInitial или AuthFailure) — показываем вход
+            return const LoginScreen();
+          },
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:my_english_app/features/dictionary/cubit/dictionary_cubit.dart';
 import 'package:my_english_app/features/learning/cubit/learning_cubit.dart';
+import 'package:my_english_app/features/profile/profile_screen.dart';
 import 'dictionary/ui/dictionary_main_screen.dart';
 import 'learning/ui/learning_screen.dart';
 
@@ -19,7 +20,7 @@ class _MainTabsScreenState extends State<MainTabsScreen> {
   final List<Widget> _screens = [
     const DictionaryMainScreen(), 
     const LearningScreen(),       
-    const Center(child: Text('Тут будет профиль.. надеюсь')), 
+    const ProfileScreen(), 
   ];
 
   @override
