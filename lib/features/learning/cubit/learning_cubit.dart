@@ -19,11 +19,33 @@ class LearningCubit extends Cubit<LearningState> {
 
   Future<void> loadWords() async {
     try {
-      final words = await _wordsRepository.getDailyWords();
+      final user = _auth.currentUser;
+
+      if (user == null) {
+        emit(LearningError());
+        return;
+      }
+
+      await _wordsRepository.getDailyWords();
+
+      final progress =
+          await _progressRepository.loadProgress(user.uid);
+
+      final words =
+          await _wordsRepository.applyProgress(progress);
+
+      final availableWords = words.where((word) {
+        return !word.isLearned && !word.isLearning;
+      }).toList();
+
+      if (availableWords.isEmpty) {
+        emit(LearningEmpty());
+        return;
+      }
 
       emit(
         LearningLoaded(
-          words: words,
+          words: availableWords,
           currentIndex: 0,
           learnedCount: _learnedTodayCount,
           isFront: true,
@@ -154,13 +176,23 @@ class LearningCubit extends Cubit<LearningState> {
     if (state is LearningLoaded) {
       final currentState = state as LearningLoaded;
 
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      final progress =
+          await _progressRepository.loadProgress(user.uid);
+
       final updatedWords =
-          await _wordsRepository.getDailyWords();
+          await _wordsRepository.applyProgress(progress);
+
+      final availableWords = updatedWords.where((word) {
+        return !word.isLearned && !word.isLearning;
+      }).toList();
 
       emit(
         LearningLoaded(
-          words: List.from(updatedWords),
-          currentIndex: currentState.currentIndex,
+          words: availableWords,
+          currentIndex: 0,
           learnedCount: currentState.learnedCount,
           isFront: currentState.isFront,
         ),

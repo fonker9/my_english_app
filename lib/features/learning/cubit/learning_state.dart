@@ -23,3 +23,5 @@ class LearningLoaded extends LearningState{
 }
 
 class LearningFinished extends LearningState {}
+
+class LearningEmpty extends LearningState {}

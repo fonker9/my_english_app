@@ -209,6 +209,23 @@ class _LearningScreenState extends State<LearningScreen> {
               );
             }
 
+            if (state is LearningEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Все доступные слова уже распределены.\n\nПродолжайте изучать слова из раздела "На изучении" или добавьте новые слова в базу.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFFA43032),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              );
+            }
+
             return const SizedBox.shrink();
           },
         ),

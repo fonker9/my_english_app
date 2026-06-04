@@ -42,9 +42,6 @@ class _MainTabsScreenState extends State<MainTabsScreen> {
           if (index == 0) {
             // Перешли в Словарь — принудительно обновляем списки уровней
             context.read<DictionaryCubit>().refreshWords();
-          } else if (index == 1) {
-            // Вернулись в Обучение — обновляем слова, сохраняя текущий индекс свайпа
-            context.read<LearningCubit>().refreshWords();
           }
         },
         selectedItemColor: const Color(0xFF828700),
