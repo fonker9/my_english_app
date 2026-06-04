@@ -1,11 +1,16 @@
 import 'word_model.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import '../../progress/data/progress_model.dart';
 
 abstract class WordsRepository {
   Future<List<Word>> getDailyWords();
+  Future<List<Word>> applyProgress(
+  ProgressModel progress,
+);
   void markAsLearned(int wordId); 
   void markAsLearning(int wordId);
+  
 }
 
 class LocalWordsRepository implements WordsRepository {
@@ -40,4 +45,23 @@ class LocalWordsRepository implements WordsRepository {
       _cachedWords[index] = _cachedWords[index].copyWith(isLearning: true);
     }
   }
+
+@override
+Future<List<Word>> applyProgress(
+  ProgressModel progress,
+) async {
+  await getDailyWords();
+
+  _cachedWords = _cachedWords.map((word) {
+    return word.copyWith(
+      isLearned:
+          progress.learnedWords.contains(word.id),
+      isLearning:
+          progress.learningWords.contains(word.id),
+    );
+  }).toList();
+
+  return _cachedWords;
+}
+
 }

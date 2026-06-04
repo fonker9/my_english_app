@@ -9,6 +9,7 @@ import 'package:my_english_app/firebase_options.dart';
 import 'features/learning/data/words_repository.dart';
 import 'features/learning/cubit/learning_cubit.dart';
 import 'features/dictionary/cubit/dictionary_cubit.dart';
+import 'features/progress/data/progress_repository.dart';
 
 void main() async {
   // Гарантируем, что внутренние связи Flutter с нативной платформой (Android/iOS)
@@ -29,6 +30,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final wordsRepository = LocalWordsRepository();
+    final progressRepository = ProgressRepository();
 
     return MultiBlocProvider(
       providers: [
@@ -36,10 +38,17 @@ class MyApp extends StatelessWidget {
           create: (context) => AuthCubit()..checkAuth(),
         ),
         BlocProvider<LearningCubit>(
-          create: (context) => LearningCubit(wordsRepository)..loadWords(),
+          create: (context) =>
+            LearningCubit(
+              wordsRepository,
+              progressRepository,
+            )..loadWords(),
         ),
         BlocProvider<DictionaryCubit>(
-          create: (context) => DictionaryCubit(wordsRepository)..loadWords(),
+          create: (context) => DictionaryCubit(
+            wordsRepository,
+            ProgressRepository(),
+          )..loadWords(),
         ),
       ],
       child: MaterialApp(

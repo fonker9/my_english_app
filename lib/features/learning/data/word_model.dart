@@ -26,7 +26,10 @@ class Word{
     );
   }
 
-  Word copyWith({bool? isLearned, bool? isLearning}){
+  Word copyWith({
+    bool? isLearned,
+    bool? isLearning,
+  }) {
     return Word(
       id: id,
       english: english,
