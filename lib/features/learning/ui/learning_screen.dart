@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import 'package:my_english_app/features/learning/cubit/learning_cubit.dart';
 import 'package:my_english_app/features/learning/cubit/learning_state.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LearningScreen extends StatefulWidget {
   const LearningScreen({super.key});
@@ -12,7 +13,6 @@ class LearningScreen extends StatefulWidget {
 }
 
 class _LearningScreenState extends State<LearningScreen> {
- 
   final CardSwiperController _swiperController = CardSwiperController();
 
   @override
@@ -27,6 +27,9 @@ class _LearningScreenState extends State<LearningScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final nickname = user?.displayName ?? 'пользователь';
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFFAE9),
       body: SafeArea(
@@ -35,7 +38,9 @@ class _LearningScreenState extends State<LearningScreen> {
             if (state is LearningLoading) {
               return const Center(
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFA43032)),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Color(0xFFA43032),
+                  ),
                 ),
               );
             }
@@ -44,34 +49,48 @@ class _LearningScreenState extends State<LearningScreen> {
               return const Center(
                 child: Text(
                   'Ошибка при загрузке слов',
-                  style: TextStyle(color: Color(0xFFA43032), fontSize: 18),
+                  style: TextStyle(
+                    color: Color(0xFFA43032),
+                    fontSize: 18,
+                  ),
                 ),
               );
             }
 
             if (state is LearningLoaded) {
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 12.0,
+                ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Здравствуйте‚',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                    const SizedBox(height: 42),
+
+                    Text(
+                      'Здравствуйте‚ $nickname',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontFamily: 'Prosto One',
                         color: Color(0xFFA43032),
                       ),
                     ),
-                    const SizedBox(height: 4),
+
+                    const SizedBox(height: 2),
+
                     const Text(
                       'Готовы изучать новые слова?',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 16,
+                        fontFamily: 'Prosto One',
                         color: Color(0xFFA43032),
                       ),
                     ),
-                    const SizedBox(height: 12),
+
+                    const SizedBox(height: 8),
 
                     Text(
                       'Изучено сегодня: ${state.learnedCount} из 5',
@@ -81,61 +100,86 @@ class _LearningScreenState extends State<LearningScreen> {
                         color: Color(0xFF828700),
                       ),
                     ),
-                    const SizedBox(height: 16),
+
 
                     Expanded(
                       child: CardSwiper(
                         controller: _swiperController,
                         cardsCount: state.words.length,
-                        initialIndex: 0, 
-                        allowedSwipeDirection: const AllowedSwipeDirection.only(
+                        initialIndex: 0,
+                        allowedSwipeDirection:
+                            const AllowedSwipeDirection.only(
                           left: true,
                           right: true,
                         ),
                         maxAngle: 30,
                         threshold: 30,
                         duration: const Duration(milliseconds: 400),
-                        
-                        onSwipe: (previousIndex, currentIndex, direction) {
-                          if (direction == CardSwiperDirection.left) {
-                            context.read<LearningCubit>().knowWord();
-                          } else if (direction == CardSwiperDirection.right) {
-                            context.read<LearningCubit>().notKnowWord();
+
+                        onSwipe:
+                            (previousIndex, currentIndex, direction) {
+                          if (direction ==
+                              CardSwiperDirection.left) {
+                            context
+                                .read<LearningCubit>()
+                                .knowWord();
+                          } else if (direction ==
+                              CardSwiperDirection.right) {
+                            context
+                                .read<LearningCubit>()
+                                .notKnowWord();
                           }
                           return true;
                         },
-                        onUndo: (previousIndex, currentIndex, direction) => true,
-                        cardBuilder: (context, index, percentX, percentY) {
+
+                        onUndo:
+                            (previousIndex, currentIndex, direction) =>
+                                true,
+
+                        cardBuilder:
+                            (context, index, percentX, percentY) {
                           final word = state.words[index];
-                          
-                          Color cardBgColor = const Color(0xFFD2E5C5);
+
+                          Color cardBgColor =
+                              const Color(0xFFD2E5C5);
+
                           if (percentX > 10) {
-                            cardBgColor = const Color(0xFFB4B55D);
+                            cardBgColor =
+                                const Color(0xFFB4B55D);
                           } else if (percentX < -10) {
-                            cardBgColor = const Color(0xFFC8817B);
+                            cardBgColor =
+                                const Color(0xFFC8817B);
                           }
 
                           return GestureDetector(
                             onTap: () {
-                              context.read<LearningCubit>().toggleCardSide();
+                              context
+                                  .read<LearningCubit>()
+                                  .toggleCardSide();
                             },
                             child: Container(
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 color: cardBgColor,
-                                borderRadius: BorderRadius.circular(24.0),
+                                borderRadius:
+                                    BorderRadius.circular(24.0),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.05),
+                                    color: Colors.black
+                                        .withValues(alpha: 0.05),
                                     blurRadius: 10,
                                     spreadRadius: 2,
                                   ),
                                 ],
                               ),
                               child: Padding(
-                                padding: const EdgeInsets.all(24.0),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24.0,
+                                  vertical: 18.0,
+                                ),
                                 child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       '${word.level.toUpperCase()} Level',
@@ -145,44 +189,97 @@ class _LearningScreenState extends State<LearningScreen> {
                                         color: Color(0xFFA43032),
                                       ),
                                     ),
+
                                     Text(
-                                      !state.isFront ? word.russian : word.english,
+                                      !state.isFront
+                                          ? word.russian
+                                          : word.english,
+                                      textAlign: TextAlign.center,
                                       style: const TextStyle(
-                                        fontSize: 36,
+                                        fontSize: 34,
                                         fontWeight: FontWeight.bold,
                                         color: Color(0xFFA43032),
                                       ),
-                                      textAlign: TextAlign.center,
                                     ),
+
+                                    
                                     Row(
                                       children: [
                                         Expanded(
                                           child: ElevatedButton(
-                                            onPressed: () => _smoothSwipe(CardSwiperDirection.left),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: const Color(0xFFA43032),
-                                              foregroundColor: Colors.white,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(12),
-                                              ),
-                                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                            onPressed: () =>
+                                                _smoothSwipe(
+                                              CardSwiperDirection.left,
                                             ),
-                                            child: const Text('Знаю', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                            style:
+                                                ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  const Color(
+                                                0xFFA43032,
+                                              ),
+                                              foregroundColor:
+                                                  Colors.white,
+                                              shape:
+                                                  RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius
+                                                        .circular(
+                                                  12,
+                                                ),
+                                              ),
+                                              padding:
+                                                  const EdgeInsets
+                                                      .symmetric(
+                                                vertical: 14,
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'Знаю',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight:
+                                                    FontWeight.bold,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(width: 16),
                                         Expanded(
                                           child: ElevatedButton(
-                                            onPressed: () => _smoothSwipe(CardSwiperDirection.right),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: const Color(0xFF828700),
-                                              foregroundColor: Colors.white,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(12),
-                                              ),
-                                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                            onPressed: () =>
+                                                _smoothSwipe(
+                                              CardSwiperDirection.right,
                                             ),
-                                            child: const Text('Учу', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                            style:
+                                                ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  const Color(
+                                                0xFF828700,
+                                              ),
+                                              foregroundColor:
+                                                  Colors.white,
+                                              shape:
+                                                  RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius
+                                                        .circular(
+                                                  12,
+                                                ),
+                                              ),
+                                              padding:
+                                                  const EdgeInsets
+                                                      .symmetric(
+                                                vertical: 14,
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'Учу',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight:
+                                                    FontWeight.bold,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -204,7 +301,11 @@ class _LearningScreenState extends State<LearningScreen> {
               return const Center(
                 child: Text(
                   'Ура! План на сегодня выполнен!',
-                  style: TextStyle(color: Color(0xFF828700), fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Color(0xFF828700),
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               );
             }
