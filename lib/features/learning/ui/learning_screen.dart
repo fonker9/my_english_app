@@ -1,9 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
+import 'package:my_english_app/app/theme/app_colors.dart';
+import 'package:my_english_app/app/theme/app_text_styles.dart';
 import 'package:my_english_app/features/learning/cubit/learning_cubit.dart';
 import 'package:my_english_app/features/learning/cubit/learning_state.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class LearningScreen extends StatefulWidget {
   const LearningScreen({super.key});
@@ -31,16 +33,14 @@ class _LearningScreenState extends State<LearningScreen> {
     final nickname = user?.displayName ?? 'пользователь';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFAE9),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: BlocBuilder<LearningCubit, LearningState>(
           builder: (context, state) {
             if (state is LearningLoading) {
               return const Center(
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Color(0xFFA43032),
-                  ),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                 ),
               );
             }
@@ -49,10 +49,7 @@ class _LearningScreenState extends State<LearningScreen> {
               return const Center(
                 child: Text(
                   'Ошибка при загрузке слов',
-                  style: TextStyle(
-                    color: Color(0xFFA43032),
-                    fontSize: 18,
-                  ),
+                  style: AppTextStyles.statusMessage,
                 ),
               );
             }
@@ -71,11 +68,7 @@ class _LearningScreenState extends State<LearningScreen> {
                     Text(
                       'Здравствуйте‚ $nickname',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontFamily: 'Prosto One',
-                        color: Color(0xFFA43032),
-                      ),
+                      style: AppTextStyles.greetingTitle,
                     ),
 
                     const SizedBox(height: 2),
@@ -83,90 +76,60 @@ class _LearningScreenState extends State<LearningScreen> {
                     const Text(
                       'Готовы изучать новые слова?',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'Prosto One',
-                        color: Color(0xFFA43032),
-                      ),
+                      style: AppTextStyles.inputLabel,
                     ),
 
                     const SizedBox(height: 8),
 
                     Text(
                       'Изучено сегодня: ${state.learnedCount} из 5',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF828700),
-                      ),
+                      style: AppTextStyles.dailyCounter,
                     ),
-
 
                     Expanded(
                       child: CardSwiper(
                         controller: _swiperController,
                         cardsCount: state.words.length,
                         initialIndex: 0,
-                        allowedSwipeDirection:
-                            const AllowedSwipeDirection.only(
+                        allowedSwipeDirection: const AllowedSwipeDirection.only(
                           left: true,
                           right: true,
                         ),
                         maxAngle: 30,
                         threshold: 30,
                         duration: const Duration(milliseconds: 400),
-
-                        onSwipe:
-                            (previousIndex, currentIndex, direction) {
-                          if (direction ==
-                              CardSwiperDirection.left) {
-                            context
-                                .read<LearningCubit>()
-                                .knowWord();
-                          } else if (direction ==
-                              CardSwiperDirection.right) {
-                            context
-                                .read<LearningCubit>()
-                                .notKnowWord();
+                        onSwipe: (previousIndex, currentIndex, direction) {
+                          if (direction == CardSwiperDirection.left) {
+                            context.read<LearningCubit>().knowWord();
+                          } else if (direction == CardSwiperDirection.right) {
+                            context.read<LearningCubit>().notKnowWord();
                           }
                           return true;
                         },
-
-                        onUndo:
-                            (previousIndex, currentIndex, direction) =>
-                                true,
-
-                        cardBuilder:
-                            (context, index, percentX, percentY) {
+                        onUndo: (previousIndex, currentIndex, direction) => true,
+                        cardBuilder: (context, index, percentX, percentY) {
                           final word = state.words[index];
 
-                          Color cardBgColor =
-                              const Color(0xFFD2E5C5);
+                          Color cardBgColor = AppColors.cardDefault;
 
                           if (percentX > 10) {
-                            cardBgColor =
-                                const Color(0xFFB4B55D);
+                            cardBgColor = AppColors.cardSwipeRight;
                           } else if (percentX < -10) {
-                            cardBgColor =
-                                const Color(0xFFC8817B);
+                            cardBgColor = AppColors.cardSwipeLeft;
                           }
 
                           return GestureDetector(
                             onTap: () {
-                              context
-                                  .read<LearningCubit>()
-                                  .toggleCardSide();
+                              context.read<LearningCubit>().toggleCardSide();
                             },
                             child: Container(
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 color: cardBgColor,
-                                borderRadius:
-                                    BorderRadius.circular(24.0),
+                                borderRadius: BorderRadius.circular(24.0),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black
-                                        .withValues(alpha: 0.05),
+                                    color: AppColors.shadow.withValues(alpha: 0.05),
                                     blurRadius: 10,
                                     spreadRadius: 2,
                                   ),
@@ -178,107 +141,61 @@ class _LearningScreenState extends State<LearningScreen> {
                                   vertical: 18.0,
                                 ),
                                 child: Column(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       '${word.level.toUpperCase()} Level',
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFFA43032),
-                                      ),
+                                      style: AppTextStyles.flashcardLevel,
                                     ),
 
                                     Text(
-                                      !state.isFront
-                                          ? word.russian
-                                          : word.english,
+                                      !state.isFront ? word.russian : word.english,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 34,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFFA43032),
-                                      ),
+                                      style: AppTextStyles.flashcardWord,
                                     ),
 
-                                    
                                     Row(
                                       children: [
                                         Expanded(
                                           child: ElevatedButton(
-                                            onPressed: () =>
-                                                _smoothSwipe(
+                                            onPressed: () => _smoothSwipe(
                                               CardSwiperDirection.left,
                                             ),
-                                            style:
-                                                ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  const Color(
-                                                0xFFA43032,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.primary,
+                                              foregroundColor: AppColors.white,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
                                               ),
-                                              foregroundColor:
-                                                  Colors.white,
-                                              shape:
-                                                  RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius
-                                                        .circular(
-                                                  12,
-                                                ),
-                                              ),
-                                              padding:
-                                                  const EdgeInsets
-                                                      .symmetric(
+                                              padding: const EdgeInsets.symmetric(
                                                 vertical: 14,
                                               ),
                                             ),
                                             child: const Text(
                                               'Знаю',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight:
-                                                    FontWeight.bold,
-                                              ),
+                                              style: AppTextStyles.cardActionButton,
                                             ),
                                           ),
                                         ),
                                         const SizedBox(width: 16),
                                         Expanded(
                                           child: ElevatedButton(
-                                            onPressed: () =>
-                                                _smoothSwipe(
+                                            onPressed: () => _smoothSwipe(
                                               CardSwiperDirection.right,
                                             ),
-                                            style:
-                                                ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  const Color(
-                                                0xFF828700,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.secondary,
+                                              foregroundColor: AppColors.white,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
                                               ),
-                                              foregroundColor:
-                                                  Colors.white,
-                                              shape:
-                                                  RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius
-                                                        .circular(
-                                                  12,
-                                                ),
-                                              ),
-                                              padding:
-                                                  const EdgeInsets
-                                                      .symmetric(
+                                              padding: const EdgeInsets.symmetric(
                                                 vertical: 14,
                                               ),
                                             ),
                                             child: const Text(
                                               'Учу',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight:
-                                                    FontWeight.bold,
-                                              ),
+                                              style: AppTextStyles.cardActionButton,
                                             ),
                                           ),
                                         ),
@@ -301,11 +218,7 @@ class _LearningScreenState extends State<LearningScreen> {
               return const Center(
                 child: Text(
                   'Ура! План на сегодня выполнен!',
-                  style: TextStyle(
-                    color: Color(0xFF828700),
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTextStyles.finishedMessage,
                 ),
               );
             }
@@ -317,11 +230,7 @@ class _LearningScreenState extends State<LearningScreen> {
                   child: Text(
                     'Все доступные слова уже распределены.\n\nПродолжайте изучать слова из раздела "На изучении" или добавьте новые слова в базу.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFFA43032),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppTextStyles.emptyLearningMessage,
                   ),
                 ),
               );

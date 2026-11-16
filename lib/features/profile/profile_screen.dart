@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_english_app/app/theme/app_colors.dart';
+import 'package:my_english_app/app/theme/app_text_styles.dart';
 import 'package:my_english_app/features/auth/cubit/auth_cubit.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -7,19 +9,16 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const backgroundColor = Color(0xFFFFFAE9);
-    const primaryColor = Color(0xFFA43032);
-
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: SizedBox(
             width: 240,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: backgroundColor,
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.background,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -31,10 +30,7 @@ class ProfileScreen extends StatelessWidget {
               },
               child: const Text(
                 'Выйти из аккаунта',
-                style: TextStyle(
-                  fontFamily: 'Days One',
-                  fontSize: 16,
-                ),
+                style: AppTextStyles.buttonMedium,
               ),
             ),
           ),

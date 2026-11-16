@@ -34,19 +34,22 @@ dependencies:
   go_router: ^14.0.0      # Для навигации
   hive: ^2.2.3            # База данных
   hive_flutter: ^1.1.0    # Интеграция базы данных с Flutter
-  
+  get_it: ^9.0.0          # DI / Service Locator
+  equatable: ^3.0.0       # Сравнение состояний и моделей
+  flutter_local_notifications: ^23.0.2 # Локальные уведомления
+  timezone: ^0.11.2       # Для планирования уведомлений
+
   firebase_core: any
   firebase_auth: any
   cloud_firestore: any
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
   flutter_svg: ^2.3.0
   flutter_card_swiper: ^7.2.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.13
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

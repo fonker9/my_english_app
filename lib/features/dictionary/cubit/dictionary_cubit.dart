@@ -1,7 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../learning/data/words_repository.dart';
 import '../../progress/data/progress_repository.dart';
-import '../../progress/data/progress_model.dart';
 import 'dictionary_state.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -26,7 +25,7 @@ class DictionaryCubit extends Cubit<DictionaryState> {
       }
 
       // 1. загружаем базовые слова
-      final words = await _wordsRepository.getDailyWords();
+      await _wordsRepository.getDailyWords();
 
       // 2. загружаем прогресс пользователя
       final progress = await _progressRepository.loadProgress(uid);

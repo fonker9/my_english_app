@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_english_app/app/theme/app_colors.dart';
+import 'package:my_english_app/app/theme/app_text_styles.dart';
 import 'package:my_english_app/features/auth/cubit/auth_cubit.dart';
 import 'package:my_english_app/features/auth/cubit/auth_state.dart';
 import 'package:my_english_app/features/main_tabs_screen.dart';
@@ -15,7 +17,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
 
-  // Создаем контроллеры для полей ввода
+  // Создаём контроллеры для полей ввода
   final _nicknameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -31,13 +33,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const backgroundColor = Color(0xFFFFFAE9);
-    const primaryColor = Color(0xFFA43032);
-    const inputFieldColor = Color(0xFFF2D9A4);
-    const hintTextColor = Color(0xFF7B7A7A);
-
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 150.0),
@@ -46,30 +43,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                
-                // Надпись регистрация
+                // Надпись Регистрация
                 const Text(
                   'Регистрация',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Prosto One',
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: primaryColor,
-                  ),
+                  style: AppTextStyles.authTitle,
                 ),
-                
+
                 const SizedBox(height: 16),
 
                 // Надпись Уже есть аккаунт?
                 const Text(
                   'Уже есть аккаунт?',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Prosto One',
-                    fontSize: 18,
-                    color: primaryColor,
-                  ),
+                  style: AppTextStyles.prostoBodyLarge,
                 ),
 
                 const SizedBox(height: 4),
@@ -83,31 +70,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: const Text(
                     'Войдите',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Prosto One',
-                      fontSize: 18,
-                      color: primaryColor,
-                      decoration: TextDecoration.underline,
-                      decorationColor: primaryColor,
-                    ),
+                    style: AppTextStyles.authLink,
                   ),
                 ),
-                
+
                 const SizedBox(height: 40),
 
                 // Надпись Никнейм
                 const Text(
                   'Никнейм',
                   textAlign: TextAlign.left,
-                  style: TextStyle(
-                    fontFamily: 'Prosto One',
-                    fontSize: 16,
-                    color: primaryColor,
-                  ),
+                  style: AppTextStyles.inputLabel,
                 ),
 
                 const SizedBox(height: 8),
-                
+
                 // Форма ввода "Никнейм"
                 TextFormField(
                   controller: _nicknameController,
@@ -119,31 +96,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                   decoration: InputDecoration(
                     hintText: 'Придумайте никнейм',
-                    hintStyle: const TextStyle(color: hintTextColor),
+                    hintStyle: AppTextStyles.inputHint,
                     filled: true,
-                    fillColor: inputFieldColor,
+                    fillColor: AppColors.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
 
                 // Надпись Логин
                 const Text(
                   'Логин',
                   textAlign: TextAlign.left,
-                  style: TextStyle(
-                    fontFamily: 'Prosto One',
-                    fontSize: 16,
-                    color: primaryColor,
-                  ),
+                  style: AppTextStyles.inputLabel,
                 ),
 
                 const SizedBox(height: 8),
-                
+
                 // Форма ввода Почта
                 TextFormField(
                   controller: _emailController,
@@ -159,9 +132,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                   decoration: InputDecoration(
                     hintText: 'Введите свою почту',
-                    hintStyle: const TextStyle(color: hintTextColor),
+                    hintStyle: AppTextStyles.inputHint,
                     filled: true,
-                    fillColor: inputFieldColor,
+                    fillColor: AppColors.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -175,14 +148,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const Text(
                   'Пароль',
                   textAlign: TextAlign.left,
-                  style: TextStyle(
-                    fontFamily: 'Prosto One',
-                    fontSize: 16,
-                    color: primaryColor,
-                  ),
+                  style: AppTextStyles.inputLabel,
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Форма ввода Пароль
                 TextFormField(
                   controller: _passwordController,
@@ -198,13 +167,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                   decoration: InputDecoration(
                     hintText: 'Придумайте пароль',
-                    hintStyle: const TextStyle(color: hintTextColor),
+                    hintStyle: AppTextStyles.inputHint,
                     filled: true,
-                    fillColor: inputFieldColor,
+                    fillColor: AppColors.surface,
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                        color: hintTextColor,
+                        color: AppColors.hintText,
                       ),
                       onPressed: () {
                         setState(() {
@@ -238,8 +207,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           // Показываем ошибку от Firebase
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              backgroundColor: primaryColor,
-                              content: Text(state.error, style: const TextStyle(color: backgroundColor)),
+                              backgroundColor: AppColors.primary,
+                              content: Text(
+                                state.error,
+                                style: const TextStyle(color: AppColors.background),
+                              ),
                             ),
                           );
                         }
@@ -248,7 +220,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       builder: (context, state) {
                         return ElevatedButton(
                           // Если идет загрузка (state is AuthLoading), передаем в onPressed значение null.
-                          // во флатере передача null в onPressed автоматически делает кнопку неактивной
                           onPressed: state is AuthLoading
                               ? null
                               : () {
@@ -262,7 +233,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
+                            backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -270,12 +241,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: CircularProgressIndicator(color: backgroundColor, strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    color: AppColors.background,
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Text(
                                   'Зарегистрироваться',
                                   maxLines: 1,
-                                  style: TextStyle(fontFamily: 'Days One', fontSize: 16, color: backgroundColor),
+                                  style: AppTextStyles.buttonMedium,
                                 ),
                         );
                       },

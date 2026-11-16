@@ -1,61 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_english_app/app/theme/app_colors.dart';
+import 'package:my_english_app/app/theme/app_text_styles.dart';
 import 'package:my_english_app/features/auth/cubit/auth_cubit.dart';
 import 'package:my_english_app/features/auth/cubit/auth_state.dart';
 import 'package:my_english_app/features/auth/ui/register_screen.dart';
 import 'package:my_english_app/features/main_tabs_screen.dart';
 
-class LoginScreen extends StatefulWidget{
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>{
+class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
 
-  // позже нужно добавить сюда контроллеры для текста
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   // Освобождаем память при закрытии экрана
   @override
-  void dispose(){
+  void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context){
-    const backgroundColor = Color(0xFFFFFAE9);
-    const primaryColor = Color(0xFFA43032);
-    const inputFieldColor = Color(0xFFF2D9A4);
-    const hintTextColor = Color(0xFF7B7A7A);
-
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child:SingleChildScrollView(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 150.0),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-
                 // Надпись Вход
                 const Text(
                   'Вход',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Prosto One',
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: primaryColor,
-                  ),
+                  style: AppTextStyles.authTitle,
                 ),
 
                 const SizedBox(height: 16),
@@ -64,11 +54,7 @@ class _LoginScreenState extends State<LoginScreen>{
                 const Text(
                   'Рады видеть Вас снова!',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Prosto One',
-                    fontSize: 26,
-                    color: primaryColor,
-                  ),
+                  style: AppTextStyles.authSubtitle,
                 ),
 
                 const SizedBox(height: 16),
@@ -77,49 +63,35 @@ class _LoginScreenState extends State<LoginScreen>{
                 const Text(
                   'Впервые у нас?',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Prosto One',
-                    fontSize: 18,
-                    color: primaryColor,
-                  ),
+                  style: AppTextStyles.prostoBodyLarge,
                 ),
 
-                const SizedBox(height: 4,),
+                const SizedBox(height: 4),
 
                 // Кликабельная надпись Зарегистрируйтесь
                 GestureDetector(
-                  onTap: (){
+                  onTap: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (context) => RegisterScreen()),
+                      MaterialPageRoute(builder: (context) => const RegisterScreen()),
                     );
                   },
                   child: const Text(
                     'Зарегистрируйтесь',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Prosto One',
-                      fontSize: 18,
-                      color: primaryColor,
-                      decoration: TextDecoration.underline,
-                      decorationColor: primaryColor,
-                    ),
+                    style: AppTextStyles.authLink,
                   ),
                 ),
 
-                const SizedBox(height: 40,),
+                const SizedBox(height: 40),
 
                 // Надпись Логин
                 const Text(
                   'Логин',
                   textAlign: TextAlign.left,
-                  style: TextStyle(
-                    fontFamily: 'Prosto One',
-                    fontSize: 16,
-                    color: primaryColor,
-                  ),
+                  style: AppTextStyles.inputLabel,
                 ),
 
-                const SizedBox(height: 8,),
+                const SizedBox(height: 8),
 
                 // Форма ввода Почта
                 TextFormField(
@@ -136,9 +108,9 @@ class _LoginScreenState extends State<LoginScreen>{
                   },
                   decoration: InputDecoration(
                     hintText: 'Почта',
-                    hintStyle: const TextStyle(color: hintTextColor),
+                    hintStyle: AppTextStyles.inputHint,
                     filled: true,
-                    fillColor: inputFieldColor,
+                    fillColor: AppColors.surface,
                     // Скругление углов
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -147,20 +119,16 @@ class _LoginScreenState extends State<LoginScreen>{
                   ),
                 ),
 
-                const SizedBox(height: 16,),
+                const SizedBox(height: 16),
 
                 // Надпись пароль
                 const Text(
                   'Пароль',
                   textAlign: TextAlign.left,
-                  style: TextStyle(
-                    fontFamily: 'Prosto One',
-                    fontSize: 16,
-                    color: primaryColor,
-                  ),
+                  style: AppTextStyles.inputLabel,
                 ),
 
-                const SizedBox(height: 8,),
+                const SizedBox(height: 8),
 
                 // Форма ввода Пароль
                 TextFormField(
@@ -177,13 +145,13 @@ class _LoginScreenState extends State<LoginScreen>{
                   },
                   decoration: InputDecoration(
                     hintText: 'Пароль',
-                    hintStyle: const TextStyle(color:hintTextColor),
+                    hintStyle: AppTextStyles.inputHint,
                     filled: true,
-                    fillColor: inputFieldColor,
+                    fillColor: AppColors.surface,
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                        color: hintTextColor,
+                        color: AppColors.hintText,
                       ),
                       onPressed: () {
                         setState(() {
@@ -198,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen>{
                   ),
                 ),
 
-                const SizedBox(height: 32,),
+                const SizedBox(height: 32),
 
                 // Кнопка Войти
                 Center(
@@ -214,8 +182,11 @@ class _LoginScreenState extends State<LoginScreen>{
                         } else if (state is AuthFailure) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              backgroundColor: primaryColor,
-                              content: Text(state.error, style: const TextStyle(color: backgroundColor)),
+                              backgroundColor: AppColors.primary,
+                              content: Text(
+                                state.error,
+                                style: const TextStyle(color: AppColors.background),
+                              ),
                             ),
                           );
                         }
@@ -234,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen>{
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
+                            backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -242,11 +213,14 @@ class _LoginScreenState extends State<LoginScreen>{
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: CircularProgressIndicator(color: backgroundColor, strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    color: AppColors.background,
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Text(
                                   'Войти',
-                                  style: TextStyle(fontFamily: 'Days One', fontSize: 24, color: backgroundColor),
+                                  style: AppTextStyles.buttonLarge,
                                 ),
                         );
                       },
@@ -256,8 +230,8 @@ class _LoginScreenState extends State<LoginScreen>{
               ],
             ),
           ),
-        )
-      )
+        ),
+      ),
     );
   }
 }

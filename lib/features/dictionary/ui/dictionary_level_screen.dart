@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_english_app/app/theme/app_colors.dart';
+import 'package:my_english_app/app/theme/app_text_styles.dart';
 import 'package:my_english_app/features/dictionary/cubit/dictionary_cubit.dart';
 import 'package:my_english_app/features/dictionary/cubit/dictionary_state.dart';
 
@@ -9,14 +11,14 @@ class DictionaryLevelScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFAE9),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: BlocBuilder<DictionaryCubit, DictionaryState>(
           builder: (context, state) {
             if (state is! DictionaryLoaded) {
               return const Center(
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFA43032)),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                 ),
               );
             }
@@ -40,28 +42,18 @@ class DictionaryLevelScreen extends StatelessWidget {
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios, color: Color(0xFFA43032)),
+                        icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary),
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         'Уровень $currentLevel',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFA43032),
-                          fontFamily: 'Prosto One',
-                        ),
+                        style: AppTextStyles.sectionHeader,
                       ),
                       const Spacer(),
                       Text(
                         '$totalLearnedInLevel / $totalWordsInLevel',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFA43032),
-                          fontFamily: 'Days One',
-                        ),
+                        style: AppTextStyles.daysOneTitle,
                       ),
                     ],
                   ),
@@ -69,13 +61,13 @@ class DictionaryLevelScreen extends StatelessWidget {
 
                   TextField(
                     onChanged: (value) => context.read<DictionaryCubit>().searchWords(value),
-                    style: const TextStyle(fontFamily: 'SF Pro Display', color: Color(0xFFA43032)),
+                    style: AppTextStyles.searchInput,
                     decoration: InputDecoration(
                       hintText: 'Найти слово...',
-                      hintStyle: const TextStyle(color: Color(0x88A43032), fontFamily: 'SF Pro Display'),
-                      prefixIcon: const Icon(Icons.search, color: Color(0xFFA43032)),
+                      hintStyle: AppTextStyles.searchHint,
+                      prefixIcon: const Icon(Icons.search, color: AppColors.primary),
                       filled: true,
-                      fillColor: const Color(0xFFF2D9A4), 
+                      fillColor: AppColors.surface,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
@@ -93,7 +85,7 @@ class DictionaryLevelScreen extends StatelessWidget {
                           _buildSectionTitle('На изучении', learningWords.length),
                           const SizedBox(height: 12),
                           _buildWordList(learningWords, isLearningSection: true),
-                          
+
                           const SizedBox(height: 28),
 
                           _buildSectionTitle('Изучено', learnedWords.length),
@@ -115,12 +107,7 @@ class DictionaryLevelScreen extends StatelessWidget {
   Widget _buildSectionTitle(String title, int count) {
     return Text(
       '$title ($count)',
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFFA43032),
-        fontFamily: 'Prosto One',
-      ),
+      style: AppTextStyles.sectionTitle,
     );
   }
 
@@ -130,14 +117,14 @@ class DictionaryLevelScreen extends StatelessWidget {
         padding: EdgeInsets.symmetric(vertical: 8.0),
         child: Text(
           'Список пуст',
-          style: TextStyle(color: Color(0x88A43032), fontSize: 14, fontFamily: 'SF Pro Display'),
+          style: AppTextStyles.emptyList,
         ),
       );
     }
 
     return ListView.separated(
-      shrinkWrap: true, 
-      physics: const NeverScrollableScrollPhysics(), 
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: words.length,
       separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
@@ -157,28 +144,19 @@ class DictionaryLevelScreen extends StatelessWidget {
                   children: [
                     Text(
                       word.english,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFA43032),
-                        fontFamily: 'Days One',
-                      ),
+                      style: AppTextStyles.daysOneTitle,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       word.russian,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF5A1E20),
-                        fontFamily: 'SF Pro Display',
-                      ),
+                      style: AppTextStyles.wordTranslation,
                     ),
                   ],
                 ),
               ),
               Icon(
                 isLearningSection ? Icons.menu_book_rounded : Icons.check_circle_rounded,
-                color: const Color(0xFFA43032),
+                color: AppColors.primary,
                 size: 20,
               ),
             ],

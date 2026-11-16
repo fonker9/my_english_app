@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:my_english_app/app/theme/app_colors.dart';
 import 'package:my_english_app/features/dictionary/cubit/dictionary_cubit.dart';
-import 'package:my_english_app/features/learning/cubit/learning_cubit.dart';
 import 'package:my_english_app/features/profile/profile_screen.dart';
 import 'dictionary/ui/dictionary_main_screen.dart';
 import 'learning/ui/learning_screen.dart';
@@ -15,23 +15,23 @@ class MainTabsScreen extends StatefulWidget {
 }
 
 class _MainTabsScreenState extends State<MainTabsScreen> {
-  int _currentIndex = 1; 
+  int _currentIndex = 1;
 
   final List<Widget> _screens = [
-    const DictionaryMainScreen(), 
-    const LearningScreen(),       
-    const ProfileScreen(), 
+    const DictionaryMainScreen(),
+    const LearningScreen(),
+    const ProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
-      return Scaffold(
-        body: IndexedStack(
+    return Scaffold(
+      body: IndexedStack(
         index: _currentIndex,
         children: _screens,
       ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFFF2D9A4),
+        backgroundColor: AppColors.surface,
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
@@ -44,8 +44,8 @@ class _MainTabsScreenState extends State<MainTabsScreen> {
             context.read<DictionaryCubit>().refreshWords();
           }
         },
-        selectedItemColor: const Color(0xFF828700),
-        unselectedItemColor: const Color(0xFFA43032),
+        selectedItemColor: AppColors.secondary,
+        unselectedItemColor: AppColors.primary,
         showSelectedLabels: false,
         showUnselectedLabels: false,
         items: [
@@ -54,7 +54,7 @@ class _MainTabsScreenState extends State<MainTabsScreen> {
               'assets/icons/book.svg',
               height: 40,
               colorFilter: ColorFilter.mode(
-                _currentIndex == 0 ? const Color(0xFF828700) : const Color(0xFFA43032), 
+                _currentIndex == 0 ? AppColors.secondary : AppColors.primary,
                 BlendMode.srcIn,
               ),
             ),
@@ -65,7 +65,7 @@ class _MainTabsScreenState extends State<MainTabsScreen> {
               'assets/icons/home.svg',
               height: 40,
               colorFilter: ColorFilter.mode(
-                _currentIndex == 1 ? const Color(0xFF828700) : const Color(0xFFA43032), 
+                _currentIndex == 1 ? AppColors.secondary : AppColors.primary,
                 BlendMode.srcIn,
               ),
             ),
@@ -76,7 +76,7 @@ class _MainTabsScreenState extends State<MainTabsScreen> {
               'assets/icons/person.svg',
               height: 40,
               colorFilter: ColorFilter.mode(
-                _currentIndex == 2 ? const Color(0xFF828700) : const Color(0xFFA43032), 
+                _currentIndex == 2 ? AppColors.secondary : AppColors.primary,
                 BlendMode.srcIn,
               ),
             ),
