@@ -4,8 +4,6 @@ import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:my_english_app/app/theme/app_colors.dart';
 import 'package:my_english_app/features/dictionary/cubit/dictionary_cubit.dart';
-import 'package:my_english_app/features/learning/cubit/swipe_cubit.dart';
-import 'package:my_english_app/features/learning/cubit/swipe_state.dart';
 import 'package:my_english_app/features/profile/cubit/profile_cubit.dart';
 
 /// Оболочка с нижней панелью навигации для основных вкладок приложения.
@@ -29,10 +27,8 @@ class MainTabsScreen extends StatelessWidget {
         context.read<DictionaryCubit>().refreshWords();
         context.go('/dictionary');
       case 1:
-        final swipeCubit = context.read<SwipeCubit>();
-        if (swipeCubit.state is! SwipeLoaded) {
-          swipeCubit.refreshWords();
-        }
+        context.read<ProfileCubit>().loadProfile();
+        context.read<DictionaryCubit>().refreshWords();
         context.go('/home');
       case 2:
         context.read<ProfileCubit>().loadProfile();

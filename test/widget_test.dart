@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:my_english_app/core/srs/srs_engine.dart';
+import 'package:my_english_app/core/utils/russian_plurals.dart';
 import 'package:my_english_app/data/models/user_settings.dart';
 import 'package:my_english_app/data/models/user_stats.dart';
 import 'package:my_english_app/data/models/word.dart';
@@ -21,6 +23,8 @@ import 'package:my_english_app/features/auth/cubit/auth_cubit.dart';
 import 'package:my_english_app/features/auth/cubit/auth_state.dart';
 import 'package:my_english_app/features/dictionary/cubit/dictionary_cubit.dart';
 import 'package:my_english_app/features/dictionary/cubit/dictionary_state.dart';
+import 'package:my_english_app/features/learning/cubit/quiz_cubit.dart';
+import 'package:my_english_app/features/learning/cubit/quiz_state.dart';
 import 'package:my_english_app/features/learning/cubit/swipe_cubit.dart';
 import 'package:my_english_app/features/learning/cubit/swipe_state.dart';
 import 'package:my_english_app/features/profile/cubit/profile_cubit.dart';
@@ -468,6 +472,121 @@ void main() {
       signedInAuth.checkAuth();
       expect(signedInAuth.state, const AuthSuccess('user_42'));
       await signedInAuth.close();
+    });
+  });
+
+  group('Фаза 3 (RussianPlurals и QuizCubit)', () {
+    test('RussianPlurals корректно склоняет слова и дни', () {
+      expect(RussianPlurals.wordsWithCount(0), '0 слов');
+      expect(RussianPlurals.wordsWithCount(1), '1 слово');
+      expect(RussianPlurals.wordsWithCount(2), '2 слова');
+      expect(RussianPlurals.wordsWithCount(5), '5 слов');
+      expect(RussianPlurals.wordsWithCount(11), '11 слов');
+      expect(RussianPlurals.wordsWithCount(21), '21 слово');
+      expect(RussianPlurals.daysWithCount(1), '1 день');
+      expect(RussianPlurals.daysWithCount(3), '3 дня');
+      expect(RussianPlurals.daysWithCount(5), '5 дней');
+    });
+
+    test('QuizCubit эмитит QuizEmpty если нет слов для повторения', () async {
+      final cubit = QuizCubit(
+        _FakeWordsRepository(const [
+          Word(id: 1, en: 'apple', ru: 'яблоко', level: 'a1'),
+        ]),
+        _FakeProgressRepository(),
+        _FakeAuthRepository(),
+      );
+
+      await cubit.startQuiz();
+      expect(cubit.state, const QuizEmpty());
+      await cubit.close();
+    });
+
+    test('QuizCubit генерирует 4 уникальных варианта с добором и обновляет SRS', () async {
+      const words = [
+        Word(id: 1, en: 'apple', ru: 'яблоко', level: 'a1'),
+        Word(id: 2, en: 'book', ru: 'книга', level: 'a1'),
+        Word(id: 3, en: 'journey', ru: 'путешествие', level: 'b1'),
+        Word(id: 4, en: 'knowledge', ru: 'знание', level: 'b2'),
+        Word(id: 5, en: 'freedom', ru: 'свобода', level: 'b1'),
+      ];
+
+      final pastDate = DateTime.now().subtract(const Duration(hours: 2));
+      final progressRepo = _FakeProgressRepository(
+        progressMap: {
+          1: const WordProgress(wordId: 1, status: WordStatus.learning),
+          2: WordProgress(
+            wordId: 2,
+            status: WordStatus.review,
+            consecutiveCorrect: 1,
+            totalCorrect: 1,
+            nextReview: pastDate,
+          ),
+        },
+        stats: UserStats(lastStudyDate: DateTime.now()),
+      );
+
+      final cubit = QuizCubit(
+        _FakeWordsRepository(words),
+        progressRepo,
+        _FakeAuthRepository(),
+        Random(42),
+      );
+
+      await cubit.startQuiz();
+      expect(cubit.state, isA<QuizLoaded>());
+
+      var loaded = cubit.state as QuizLoaded;
+      expect(loaded.questions.length, 2);
+      for (final q in loaded.questions) {
+        expect(q.options.length, 4);
+        expect(q.options.toSet().length, 4);
+        expect(q.options[q.correctIndex], q.correctAnswer);
+      }
+
+      // Первый вопрос: отвечаем правильно
+      final firstQuestion = loaded.currentQuestion;
+      cubit.selectAnswer(firstQuestion.correctIndex);
+      loaded = cubit.state as QuizLoaded;
+      expect(loaded.isAnswered, isTrue);
+      expect(loaded.correctCount, 1);
+      expect(
+        progressRepo.progressMap[firstQuestion.word.id]?.status,
+        WordStatus.review,
+      );
+
+      cubit.nextQuestion();
+      loaded = cubit.state as QuizLoaded;
+      expect(loaded.currentIndex, 1);
+      expect(loaded.isAnswered, isFalse);
+
+      // Второй вопрос: отвечаем неправильно
+      final secondQuestion = loaded.currentQuestion;
+      final wrongIndex = (secondQuestion.correctIndex + 1) % 4;
+      cubit.selectAnswer(wrongIndex);
+      loaded = cubit.state as QuizLoaded;
+      expect(loaded.wrongCount, 1);
+      expect(
+        progressRepo.progressMap[secondQuestion.word.id]?.status,
+        WordStatus.learning,
+      );
+      expect(
+        progressRepo.progressMap[secondQuestion.word.id]?.consecutiveCorrect,
+        0,
+      );
+
+      cubit.nextQuestion();
+      expect(cubit.state, isA<QuizFinished>());
+      final finished = cubit.state as QuizFinished;
+      expect(finished.correctCount, 1);
+      expect(finished.wrongCount, 1);
+      expect(finished.accuracyPercent, 50);
+      expect(finished.wrongWords, [secondQuestion.word]);
+      expect(progressRepo.stats.todayReviews, 2);
+      expect(progressRepo.stats.totalQuizCorrect, 1);
+      expect(progressRepo.stats.totalQuizWrong, 1);
+
+      await cubit.close();
     });
   });
 }

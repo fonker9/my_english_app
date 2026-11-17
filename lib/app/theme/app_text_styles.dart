@@ -237,4 +237,28 @@ class AppTextStyles {
     fontWeight: FontWeight.bold,
     color: AppColors.primary,
   );
+
+  /// Крупный заголовок приветствия на главном дашборде.
+  static const TextStyle homeGreeting = TextStyle(
+    fontFamily: fontProstoOne,
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+    color: AppColors.primary,
+  );
+
+  /// Текст кнопки варианта ответа в квизе.
+  static const TextStyle quizOption = TextStyle(
+    fontFamily: fontSfPro,
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    color: AppColors.primary,
+  );
+
+  /// Текст кнопки варианта ответа в квизе на цветном фоне (выбранный).
+  static const TextStyle quizOptionSelected = TextStyle(
+    fontFamily: fontSfPro,
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    color: AppColors.white,
+  );
 }

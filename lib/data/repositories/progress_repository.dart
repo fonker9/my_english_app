@@ -78,14 +78,25 @@ class ProgressRepositoryImpl implements ProgressRepository {
     final allProgress = _localSource.getAllProgress(uid);
 
     return allProgress.values
-        .where((progress) {
-          final isActive = progress.status == WordStatus.learning ||
-              progress.status == WordStatus.review;
-          final nextReview = progress.nextReview;
-          return isActive && nextReview != null && !nextReview.isAfter(now);
-        })
+        .where((progress) => isWordDueForReview(progress, now))
         .map((progress) => progress.wordId)
         .toList();
+  }
+
+  /// Проверяет, доступно ли слово для повторения в Квизе или Написании на момент [now].
+  static bool isWordDueForReview(WordProgress progress, [DateTime? now]) {
+    final referenceTime = now ?? DateTime.now();
+    final isActive = progress.status == WordStatus.learning ||
+        progress.status == WordStatus.review;
+    if (!isActive) return false;
+
+    final isFirstQuizAttempt = progress.status == WordStatus.learning &&
+        progress.totalCorrect == 0 &&
+        progress.totalWrong == 0;
+    if (isFirstQuizAttempt) return true;
+
+    final nextReview = progress.nextReview;
+    return nextReview != null && !nextReview.isAfter(referenceTime);
   }
 
   @override

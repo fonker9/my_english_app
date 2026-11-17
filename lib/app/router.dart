@@ -7,6 +7,9 @@ import 'package:my_english_app/features/auth/ui/login_screen.dart';
 import 'package:my_english_app/features/auth/ui/register_screen.dart';
 import 'package:my_english_app/features/dictionary/ui/dictionary_level_screen.dart';
 import 'package:my_english_app/features/dictionary/ui/dictionary_main_screen.dart';
+import 'package:my_english_app/features/home/ui/home_screen.dart';
+import 'package:my_english_app/features/learning/ui/learning_hub_screen.dart';
+import 'package:my_english_app/features/learning/ui/quiz_screen.dart';
 import 'package:my_english_app/features/learning/ui/swipe_screen.dart';
 import 'package:my_english_app/features/main_tabs_screen.dart';
 import 'package:my_english_app/features/profile/ui/profile_screen.dart';
@@ -60,8 +63,7 @@ GoRouter createAppRouter(AuthCubit authCubit) {
         routes: [
           GoRoute(
             path: '/home',
-            // В Фазе 3 здесь будет подключён HomeScreen.
-            builder: (_, _) => const SwipeScreen(),
+            builder: (_, _) => const HomeScreen(),
           ),
           GoRoute(
             path: '/dictionary',
@@ -84,8 +86,16 @@ GoRouter createAppRouter(AuthCubit authCubit) {
 
       // --- Learning ---
       GoRoute(
+        path: '/learning',
+        builder: (_, _) => const LearningHubScreen(),
+      ),
+      GoRoute(
         path: '/learning/swipe',
         builder: (_, _) => const SwipeScreen(),
+      ),
+      GoRoute(
+        path: '/learning/quiz',
+        builder: (_, _) => const QuizScreen(),
       ),
 
       // --- Settings ---

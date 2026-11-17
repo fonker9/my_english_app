@@ -10,6 +10,7 @@ import '../../data/sources/remote/firebase_auth_source.dart';
 import '../../data/sources/remote/firestore_progress_source.dart';
 import '../../features/auth/cubit/auth_cubit.dart';
 import '../../features/dictionary/cubit/dictionary_cubit.dart';
+import '../../features/learning/cubit/quiz_cubit.dart';
 import '../../features/learning/cubit/swipe_cubit.dart';
 import '../../features/profile/cubit/profile_cubit.dart';
 
@@ -49,6 +50,12 @@ Future<void> initDependencies() async {
       sl<WordsRepository>(),
       sl<ProgressRepository>(),
       sl<SettingsRepository>(),
+    ),
+  );
+  sl.registerFactory(
+    () => QuizCubit(
+      sl<WordsRepository>(),
+      sl<ProgressRepository>(),
     ),
   );
   sl.registerFactory(

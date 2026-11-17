@@ -40,6 +40,12 @@ class AppColors {
   /// Базовый цвет тени.
   static const Color shadow = Colors.black;
 
+  /// Цвет успешного ответа (квиз, написание).
+  static const Color success = Color(0xFF4B7C0C);
+
+  /// Цвет ошибочного ответа (квиз, написание).
+  static const Color error = primary;
+
   /// Цвета бейджей уровней английского языка (CEFR).
   static const Color levelA1 = Color(0xFF04826B);
   static const Color levelA2 = Color(0xFF4B7C0C);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
+import 'package:go_router/go_router.dart';
 import 'package:my_english_app/app/theme/app_colors.dart';
 import 'package:my_english_app/app/theme/app_text_styles.dart';
 import 'package:my_english_app/features/learning/cubit/swipe_cubit.dart';
@@ -29,11 +30,36 @@ class _SwipeScreenState extends State<SwipeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canPop = context.canPop();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: BlocBuilder<SwipeCubit, SwipeState>(
-          builder: (context, state) {
+        child: Column(
+          children: [
+            if (canPop)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8.0, 8.0, 20.0, 0.0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.arrow_back_ios,
+                        color: AppColors.primary,
+                      ),
+                      onPressed: () => context.pop(),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Карточки',
+                      style: AppTextStyles.sectionHeader,
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: BlocBuilder<SwipeCubit, SwipeState>(
+                builder: (context, state) {
             if (state is SwipeLoading) {
               return const Center(
                 child: CircularProgressIndicator(
@@ -263,7 +289,10 @@ class _SwipeScreenState extends State<SwipeScreen> {
             }
 
             return const SizedBox.shrink();
-          },
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

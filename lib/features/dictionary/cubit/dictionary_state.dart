@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:my_english_app/data/models/word.dart';
 import 'package:my_english_app/data/models/word_progress.dart';
+import 'package:my_english_app/data/repositories/progress_repository.dart';
 
 /// Режим группировки словаря на главном экране.
 enum DictionaryFilterMode { byLevel, byTopic }
@@ -43,6 +44,21 @@ class DictionaryLoaded extends DictionaryState {
   /// Возвращает текущий статус изучения слова [wordId].
   WordStatus statusOf(int wordId) =>
       progressMap[wordId]?.status ?? WordStatus.unseen;
+
+  /// Общее количество ещё не изученных слов (`unseen`).
+  int get unseenWordsCount => allWords
+      .where((word) => statusOf(word.id) == WordStatus.unseen)
+      .length;
+
+  /// Количество слов, готовых к повторению в Квизе и Написании сегодня.
+  int get dueForReviewCount {
+    final now = DateTime.now();
+    return allWords.where((word) {
+      final progress = progressMap[word.id];
+      if (progress == null) return false;
+      return ProgressRepositoryImpl.isWordDueForReview(progress, now);
+    }).length;
+  }
 
   /// Новые слова (`unseen`) в выбранном уровне/теме и с учётом поиска.
   List<Word> get newWordsFiltered =>
