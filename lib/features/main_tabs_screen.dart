@@ -1,49 +1,56 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:my_english_app/app/theme/app_colors.dart';
 import 'package:my_english_app/features/dictionary/cubit/dictionary_cubit.dart';
-import 'package:my_english_app/features/profile/profile_screen.dart';
-import 'dictionary/ui/dictionary_main_screen.dart';
-import 'learning/ui/learning_screen.dart';
+import 'package:my_english_app/features/learning/cubit/swipe_cubit.dart';
+import 'package:my_english_app/features/learning/cubit/swipe_state.dart';
+import 'package:my_english_app/features/profile/cubit/profile_cubit.dart';
 
-class MainTabsScreen extends StatefulWidget {
-  const MainTabsScreen({super.key});
+/// Оболочка с нижней панелью навигации для основных вкладок приложения.
+class MainTabsScreen extends StatelessWidget {
+  final Widget child;
 
-  @override
-  State<MainTabsScreen> createState() => _MainTabsScreenState();
-}
+  const MainTabsScreen({
+    super.key,
+    required this.child,
+  });
 
-class _MainTabsScreenState extends State<MainTabsScreen> {
-  int _currentIndex = 1;
+  int _currentIndexFromLocation(String location) {
+    if (location.startsWith('/dictionary')) return 0;
+    if (location.startsWith('/profile')) return 2;
+    return 1;
+  }
 
-  final List<Widget> _screens = [
-    const DictionaryMainScreen(),
-    const LearningScreen(),
-    const ProfileScreen(),
-  ];
+  void _onTap(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        context.read<DictionaryCubit>().refreshWords();
+        context.go('/dictionary');
+      case 1:
+        final swipeCubit = context.read<SwipeCubit>();
+        if (swipeCubit.state is! SwipeLoaded) {
+          swipeCubit.refreshWords();
+        }
+        context.go('/home');
+      case 2:
+        context.read<ProfileCubit>().loadProfile();
+        context.go('/profile');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final location = GoRouterState.of(context).matchedLocation;
+    final currentIndex = _currentIndexFromLocation(location);
+
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: child,
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: AppColors.surface,
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-
-          // Синхронизируем кубиты при переключении вкладок
-          if (index == 0) {
-            // Перешли в Словарь — принудительно обновляем списки уровней
-            context.read<DictionaryCubit>().refreshWords();
-          }
-        },
+        currentIndex: currentIndex,
+        onTap: (index) => _onTap(context, index),
         selectedItemColor: AppColors.secondary,
         unselectedItemColor: AppColors.primary,
         showSelectedLabels: false,
@@ -54,7 +61,7 @@ class _MainTabsScreenState extends State<MainTabsScreen> {
               'assets/icons/book.svg',
               height: 40,
               colorFilter: ColorFilter.mode(
-                _currentIndex == 0 ? AppColors.secondary : AppColors.primary,
+                currentIndex == 0 ? AppColors.secondary : AppColors.primary,
                 BlendMode.srcIn,
               ),
             ),
@@ -65,7 +72,7 @@ class _MainTabsScreenState extends State<MainTabsScreen> {
               'assets/icons/home.svg',
               height: 40,
               colorFilter: ColorFilter.mode(
-                _currentIndex == 1 ? AppColors.secondary : AppColors.primary,
+                currentIndex == 1 ? AppColors.secondary : AppColors.primary,
                 BlendMode.srcIn,
               ),
             ),
@@ -76,7 +83,7 @@ class _MainTabsScreenState extends State<MainTabsScreen> {
               'assets/icons/person.svg',
               height: 40,
               colorFilter: ColorFilter.mode(
-                _currentIndex == 2 ? AppColors.secondary : AppColors.primary,
+                currentIndex == 2 ? AppColors.secondary : AppColors.primary,
                 BlendMode.srcIn,
               ),
             ),

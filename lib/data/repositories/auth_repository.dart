@@ -19,6 +19,9 @@ abstract class AuthRepository {
 
   /// Никнейм текущего пользователя.
   String? get currentDisplayName;
+
+  /// Email текущего пользователя.
+  String? get currentEmail;
 }
 
 /// Реализация [AuthRepository] поверх [FirebaseAuthSource].
@@ -52,4 +55,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   String? get currentDisplayName => _authSource.currentDisplayName;
+
+  @override
+  String? get currentEmail => _authSource.currentEmail;
 }

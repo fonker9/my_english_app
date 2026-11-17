@@ -1,72 +1,118 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../learning/data/words_repository.dart';
-import '../../progress/data/progress_repository.dart';
+import 'package:my_english_app/core/di/service_locator.dart';
+import 'package:my_english_app/data/repositories/auth_repository.dart';
+import 'package:my_english_app/data/repositories/progress_repository.dart';
+import 'package:my_english_app/data/repositories/words_repository.dart';
 import 'dictionary_state.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
+/// Кубит управления словарём: загрузка слов, прогресса и фильтрация по уровням/темам.
 class DictionaryCubit extends Cubit<DictionaryState> {
+  static const List<String> cefrLevels = ['a1', 'a2', 'b1', 'b2', 'c1', 'c2'];
+
   final WordsRepository _wordsRepository;
   final ProgressRepository _progressRepository;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final AuthRepository _authRepository;
 
   DictionaryCubit(
     this._wordsRepository,
-    this._progressRepository,
-  ) : super(DictionaryLoading());
+    this._progressRepository, [
+    AuthRepository? authRepository,
+  ])  : _authRepository = authRepository ?? sl<AuthRepository>(),
+        super(const DictionaryLoading());
 
+  /// Загружает слова из assets, список тем и прогресс текущего пользователя.
   Future<void> loadWords() async {
     try {
-      emit(DictionaryLoading());
+      emit(const DictionaryLoading());
 
-      final uid = _auth.currentUser?.uid;
+      final uid = _authRepository.currentUid;
       if (uid == null) {
-        emit(DictionaryError());
+        emit(const DictionaryError('Пользователь не авторизован'));
         return;
       }
 
-      // 1. загружаем базовые слова
-      await _wordsRepository.getDailyWords();
+      final words = await _wordsRepository.getAllWords();
+      final topics = _wordsRepository.getAvailableTopics();
+      final progressMap = await _progressRepository.loadAllProgress(uid);
 
-      // 2. загружаем прогресс пользователя
-      final progress = await _progressRepository.loadProgress(uid);
-
-      // 3. накладываем прогресс на слова
-      final updatedWords =
-          await _wordsRepository.applyProgress(progress);
-
-      emit(DictionaryLoaded(allWords: updatedWords));
+      emit(
+        DictionaryLoaded(
+          allWords: words,
+          progressMap: progressMap,
+          availableTopics: topics,
+        ),
+      );
     } catch (e) {
-      emit(DictionaryError());
+      emit(DictionaryError('Ошибка загрузки словаря: $e'));
     }
   }
 
-  void refreshWords() async {
+  /// Обновляет прогресс слов при возврате на экран словаря.
+  Future<void> refreshWords() async {
+    if (state is! DictionaryLoaded) {
+      await loadWords();
+      return;
+    }
+
+    final currentState = state as DictionaryLoaded;
+    try {
+      final uid = _authRepository.currentUid;
+      if (uid == null) return;
+
+      final progressMap = await _progressRepository.loadAllProgress(uid);
+      emit(currentState.copyWith(progressMap: progressMap));
+    } catch (e) {
+      emit(DictionaryError('Ошибка обновления словаря: $e'));
+    }
+  }
+
+  /// Переключает режим отображения словаря («По уровням» / «По темам»).
+  void setFilterMode(DictionaryFilterMode mode) {
     if (state is DictionaryLoaded) {
-      try {
-        final uid = _auth.currentUser?.uid;
-        if (uid == null) return;
-
-        final progress = await _progressRepository.loadProgress(uid);
-        final updatedWords =
-            await _wordsRepository.applyProgress(progress);
-
-        emit(DictionaryLoaded(allWords: updatedWords));
-      } catch (e) {
-        emit(DictionaryError());
-      }
+      final currentState = state as DictionaryLoaded;
+      emit(currentState.copyWith(filterMode: mode));
     }
   }
 
+  /// Выбирает уровень (A1–C2) для просмотра слов.
   void selectLevel(String level) {
     if (state is DictionaryLoaded) {
       final currentState = state as DictionaryLoaded;
-      emit(currentState.copyWith(
-        selectedLevel: level,
-        searchQuery: '',
-      ));
+      emit(
+        currentState.copyWith(
+          selectedLevel: level,
+          selectedTopic: null,
+          searchQuery: '',
+        ),
+      );
     }
   }
 
+  /// Выбирает тему для просмотра слов.
+  void selectTopic(String topic) {
+    if (state is DictionaryLoaded) {
+      final currentState = state as DictionaryLoaded;
+      emit(
+        currentState.copyWith(
+          selectedLevel: null,
+          selectedTopic: topic,
+          searchQuery: '',
+        ),
+      );
+    }
+  }
+
+  /// Определяет по строковому параметру маршрута, это уровень или тема, и применяет фильтр.
+  void selectCategory(String category) {
+    final normalized = category.trim().toLowerCase();
+    if (cefrLevels.contains(normalized)) {
+      selectLevel(normalized.toUpperCase());
+    } else {
+      selectTopic(category);
+    }
+  }
+
+  /// Фильтрует слова в выбранном уровне/теме по строке поиска.
   void searchWords(String query) {
     if (state is DictionaryLoaded) {
       final currentState = state as DictionaryLoaded;

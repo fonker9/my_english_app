@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:my_english_app/app/theme/app_colors.dart';
 import 'package:my_english_app/app/theme/app_text_styles.dart';
 import 'package:my_english_app/features/auth/cubit/auth_cubit.dart';
 import 'package:my_english_app/features/auth/cubit/auth_state.dart';
-import 'package:my_english_app/features/auth/ui/register_screen.dart';
-import 'package:my_english_app/features/main_tabs_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -71,9 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Кликабельная надпись Зарегистрируйтесь
                 GestureDetector(
                   onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                    );
+                    context.push('/register');
                   },
                   child: const Text(
                     'Зарегистрируйтесь',
@@ -175,10 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: BlocConsumer<AuthCubit, AuthState>(
                       listener: (context, state) {
                         if (state is AuthSuccess) {
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(builder: (context) => const MainTabsScreen()),
-                            (route) => false,
-                          );
+                          context.go('/home');
                         } else if (state is AuthFailure) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(

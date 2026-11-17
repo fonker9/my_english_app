@@ -1,17 +1,39 @@
-abstract class AuthState {}
+import 'package:equatable/equatable.dart';
 
-class AuthInitial extends AuthState{}
+/// Базовое состояние аутентификации.
+abstract class AuthState extends Equatable {
+  const AuthState();
 
-class AuthLoading extends AuthState{}
-
-class AuthSuccess extends AuthState{
-  final String uid;
-
-  AuthSuccess(this.uid);
+  @override
+  List<Object?> get props => [];
 }
 
-class AuthFailure extends AuthState{
+/// Начальное состояние (пользователь не авторизован).
+class AuthInitial extends AuthState {
+  const AuthInitial();
+}
+
+/// Состояние загрузки при выполнении входа или регистрации.
+class AuthLoading extends AuthState {
+  const AuthLoading();
+}
+
+/// Состояние успешной аутентификации.
+class AuthSuccess extends AuthState {
+  final String uid;
+
+  const AuthSuccess(this.uid);
+
+  @override
+  List<Object?> get props => [uid];
+}
+
+/// Состояние ошибки аутентификации.
+class AuthFailure extends AuthState {
   final String error;
 
-  AuthFailure(this.error);
+  const AuthFailure(this.error);
+
+  @override
+  List<Object?> get props => [error];
 }

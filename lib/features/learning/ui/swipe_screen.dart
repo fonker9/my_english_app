@@ -1,20 +1,20 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import 'package:my_english_app/app/theme/app_colors.dart';
 import 'package:my_english_app/app/theme/app_text_styles.dart';
-import 'package:my_english_app/features/learning/cubit/learning_cubit.dart';
-import 'package:my_english_app/features/learning/cubit/learning_state.dart';
+import 'package:my_english_app/features/learning/cubit/swipe_cubit.dart';
+import 'package:my_english_app/features/learning/cubit/swipe_state.dart';
 
-class LearningScreen extends StatefulWidget {
-  const LearningScreen({super.key});
+/// Экран свайп-карточек для знакомства с новыми словами.
+class SwipeScreen extends StatefulWidget {
+  const SwipeScreen({super.key});
 
   @override
-  State<LearningScreen> createState() => _LearningScreenState();
+  State<SwipeScreen> createState() => _SwipeScreenState();
 }
 
-class _LearningScreenState extends State<LearningScreen> {
+class _SwipeScreenState extends State<SwipeScreen> {
   final CardSwiperController _swiperController = CardSwiperController();
 
   @override
@@ -29,15 +29,12 @@ class _LearningScreenState extends State<LearningScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final nickname = user?.displayName ?? 'пользователь';
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: BlocBuilder<LearningCubit, LearningState>(
+        child: BlocBuilder<SwipeCubit, SwipeState>(
           builder: (context, state) {
-            if (state is LearningLoading) {
+            if (state is SwipeLoading) {
               return const Center(
                 child: CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
@@ -45,16 +42,17 @@ class _LearningScreenState extends State<LearningScreen> {
               );
             }
 
-            if (state is LearningError) {
-              return const Center(
+            if (state is SwipeError) {
+              return Center(
                 child: Text(
-                  'Ошибка при загрузке слов',
+                  state.message,
+                  textAlign: TextAlign.center,
                   style: AppTextStyles.statusMessage,
                 ),
               );
             }
 
-            if (state is LearningLoaded) {
+            if (state is SwipeLoaded) {
               return Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20.0,
@@ -66,7 +64,7 @@ class _LearningScreenState extends State<LearningScreen> {
                     const SizedBox(height: 42),
 
                     Text(
-                      'Здравствуйте‚ $nickname',
+                      'Здравствуйте, ${state.nickname}',
                       textAlign: TextAlign.center,
                       style: AppTextStyles.greetingTitle,
                     ),
@@ -82,7 +80,7 @@ class _LearningScreenState extends State<LearningScreen> {
                     const SizedBox(height: 8),
 
                     Text(
-                      'Изучено сегодня: ${state.learnedCount} из 5',
+                      'Новых сегодня: ${state.learnedCount} из ${state.dailyGoal}',
                       style: AppTextStyles.dailyCounter,
                     ),
 
@@ -100,9 +98,9 @@ class _LearningScreenState extends State<LearningScreen> {
                         duration: const Duration(milliseconds: 400),
                         onSwipe: (previousIndex, currentIndex, direction) {
                           if (direction == CardSwiperDirection.left) {
-                            context.read<LearningCubit>().knowWord();
+                            context.read<SwipeCubit>().knowWord();
                           } else if (direction == CardSwiperDirection.right) {
-                            context.read<LearningCubit>().notKnowWord();
+                            context.read<SwipeCubit>().notKnowWord();
                           }
                           return true;
                         },
@@ -120,7 +118,7 @@ class _LearningScreenState extends State<LearningScreen> {
 
                           return GestureDetector(
                             onTap: () {
-                              context.read<LearningCubit>().toggleCardSide();
+                              context.read<SwipeCubit>().toggleCardSide();
                             },
                             child: Container(
                               width: double.infinity,
@@ -148,10 +146,24 @@ class _LearningScreenState extends State<LearningScreen> {
                                       style: AppTextStyles.flashcardLevel,
                                     ),
 
-                                    Text(
-                                      !state.isFront ? word.russian : word.english,
-                                      textAlign: TextAlign.center,
-                                      style: AppTextStyles.flashcardWord,
+                                    Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          !state.isFront ? word.ru : word.en,
+                                          textAlign: TextAlign.center,
+                                          style: AppTextStyles.flashcardWord,
+                                        ),
+                                        if (state.isFront &&
+                                            word.transcription.isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            word.transcription,
+                                            textAlign: TextAlign.center,
+                                            style: AppTextStyles.wordTranslation,
+                                          ),
+                                        ],
+                                      ],
                                     ),
 
                                     Row(
@@ -214,16 +226,30 @@ class _LearningScreenState extends State<LearningScreen> {
               );
             }
 
-            if (state is LearningFinished) {
-              return const Center(
-                child: Text(
-                  'Ура! План на сегодня выполнен!',
-                  style: AppTextStyles.finishedMessage,
+            if (state is SwipeFinished) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Ура! План на сегодня выполнен!',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.finishedMessage,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Новых сегодня: ${state.learnedCount} из ${state.dailyGoal}',
+                        style: AppTextStyles.dailyCounter,
+                      ),
+                    ],
+                  ),
                 ),
               );
             }
 
-            if (state is LearningEmpty) {
+            if (state is SwipeEmpty) {
               return const Center(
                 child: Padding(
                   padding: EdgeInsets.all(24),

@@ -10,10 +10,8 @@ import '../../data/sources/remote/firebase_auth_source.dart';
 import '../../data/sources/remote/firestore_progress_source.dart';
 import '../../features/auth/cubit/auth_cubit.dart';
 import '../../features/dictionary/cubit/dictionary_cubit.dart';
-import '../../features/learning/cubit/learning_cubit.dart';
-import '../../features/learning/data/words_repository.dart' as legacy_words;
-import '../../features/progress/data/progress_repository.dart'
-    as legacy_progress;
+import '../../features/learning/cubit/swipe_cubit.dart';
+import '../../features/profile/cubit/profile_cubit.dart';
 
 /// Глобальный экземпляр Service Locator.
 final sl = GetIt.instance;
@@ -27,7 +25,7 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => FirestoreProgressSource());
   sl.registerLazySingleton(() => FirebaseAuthSource());
 
-  // --- Repositories (новая архитектура) ---
+  // --- Repositories ---
   sl.registerLazySingleton<WordsRepository>(
     () => WordsRepositoryImpl(sl<AssetWordsSource>()),
   );
@@ -44,26 +42,25 @@ Future<void> initDependencies() async {
     () => SettingsRepositoryImpl(sl<HiveSettingsSource>()),
   );
 
-  // --- Временные зависимости для существующих Cubit до Фазы 2 ---
-  sl.registerLazySingleton<legacy_words.WordsRepository>(
-    () => legacy_words.LocalWordsRepository(),
-  );
-  sl.registerLazySingleton<legacy_progress.ProgressRepository>(
-    () => legacy_progress.ProgressRepository(),
-  );
-
   // --- Cubits ---
-  sl.registerFactory(() => AuthCubit());
+  sl.registerFactory(() => AuthCubit(sl<AuthRepository>()));
   sl.registerFactory(
-    () => LearningCubit(
-      sl<legacy_words.WordsRepository>(),
-      sl<legacy_progress.ProgressRepository>(),
+    () => SwipeCubit(
+      sl<WordsRepository>(),
+      sl<ProgressRepository>(),
+      sl<SettingsRepository>(),
     ),
   );
   sl.registerFactory(
     () => DictionaryCubit(
-      sl<legacy_words.WordsRepository>(),
-      sl<legacy_progress.ProgressRepository>(),
+      sl<WordsRepository>(),
+      sl<ProgressRepository>(),
+    ),
+  );
+  sl.registerFactory(
+    () => ProfileCubit(
+      sl<ProgressRepository>(),
+      sl<AuthRepository>(),
     ),
   );
 }

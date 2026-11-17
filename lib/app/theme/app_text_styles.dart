@@ -200,4 +200,41 @@ class AppTextStyles {
     fontWeight: FontWeight.w600,
     color: AppColors.primary,
   );
+
+  /// Выбранная вкладка переключателя («По уровням» / «По темам»).
+  static const TextStyle segmentSelected = TextStyle(
+    fontFamily: fontProstoOne,
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
+    color: AppColors.background,
+  );
+
+  /// Невыбранная вкладка переключателя («По уровням» / «По темам»).
+  static const TextStyle segmentUnselected = TextStyle(
+    fontFamily: fontProstoOne,
+    fontSize: 14,
+    color: AppColors.primary,
+  );
+
+  /// Мелкая мета-информация карточки (прогресс уровня, часть речи, транскрипция).
+  static const TextStyle cardMeta = TextStyle(
+    fontFamily: fontSfPro,
+    fontSize: 12,
+    color: AppColors.subtitleText,
+  );
+
+  /// Заголовок карточки статистики в профиле.
+  static const TextStyle profileStatLabel = TextStyle(
+    fontFamily: fontProstoOne,
+    fontSize: 14,
+    color: AppColors.subtitleText,
+  );
+
+  /// Значение статистики в профиле.
+  static const TextStyle profileStatValue = TextStyle(
+    fontFamily: fontDaysOne,
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+    color: AppColors.primary,
+  );
 }

@@ -1,140 +1,58 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_english_app/data/repositories/auth_repository.dart';
 import 'package:my_english_app/features/auth/cubit/auth_state.dart';
-import '../../progress/data/progress_repository.dart';
-import '../../progress/data/progress_model.dart';
 
-class AuthCubit extends Cubit<AuthState>{
-  // Получаем доступ к инструментам авторизации firebase
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+/// Кубит управления аутентификацией пользователя через [AuthRepository].
+class AuthCubit extends Cubit<AuthState> {
+  final AuthRepository _authRepository;
 
-  final ProgressRepository _progressRepository =
-    ProgressRepository();
-  
-  // В конструкторе базовому классу cubit обязательно отдаем стартовое состояние
-  AuthCubit() : super(AuthInitial()) {
-  _auth.authStateChanges().listen((user) {
-    debugPrint(
-      'AUTH STATE CHANGED: ${user?.email} uid=${user?.uid}',
-    );
-  });
-}
+  AuthCubit(this._authRepository) : super(const AuthInitial());
 
-  void checkAuth(){
-    final user = _auth.currentUser;
+  /// Проверяет текущую сессию пользователя при старте приложения.
+  void checkAuth() {
+    final uid = _authRepository.currentUid;
+    debugPrint('Проверка авторизации, uid=$uid');
 
-    debugPrint('Current user: ${user?.email}');
-    debugPrint('UID: ${user?.uid}');
-
-    if (user != null){
-      //  Если пользователь найден в системе (т.е он уже логинился с этого устройства) отдаем его uid в состояние успеха
-      emit(AuthSuccess(user.uid));
+    if (uid != null) {
+      emit(AuthSuccess(uid));
     } else {
-      // Если никого нет, оставляем начальное состояние
-      emit(AuthInitial());
+      emit(const AuthInitial());
     }
   }
-  // Метод Входа
+
+  /// Выполняет вход по email и паролю.
   Future<void> signIn(String email, String password) async {
-    try{
-      // Как только вызвали метод, принудительно показываем загрузку
-      emit(AuthLoading());
-
-      // Ждем ответа от сервера firebase
-      UserCredential credential = await _auth.signInWithEmailAndPassword(
-        email: email.trim(), 
-        password: password.trim(),
-      );
-
-      await _ensureUserProgress(
-        credential.user!.uid,
-      );
-
-      emit(AuthSuccess(
-        credential.user!.uid,
-      ));
-    } on FirebaseAuthException catch (e){
-      debugPrint('========== SIGN IN ERROR ==========');
-      debugPrint('code: ${e.code}');
-      debugPrint('message: ${e.message}');
-      debugPrint('===================================');
-
-      emit(
-        AuthFailure(
-          'Firebase error: ${e.code}\n${e.message}',
-        ),
-      );
+    try {
+      emit(const AuthLoading());
+      final uid = await _authRepository.signIn(email, password);
+      emit(AuthSuccess(uid));
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Ошибка входа Firebase: ${e.code} / ${e.message}');
+      emit(AuthFailure('Firebase error: ${e.code}\n${e.message}'));
     } catch (e) {
       emit(AuthFailure('Неизвестная ошибка: $e'));
     }
   }
-  // Метод регистрации
+
+  /// Регистрирует нового пользователя с никнеймом.
   Future<void> signUp(String email, String password, String nickname) async {
     try {
-      emit(AuthLoading());
-
-      UserCredential credential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(), 
-        password: password.trim(),
-      );
-
-      // Сохраняем никнейм в поле displayName в firebase auth
-      if (nickname.trim().isNotEmpty){
-        await credential.user?.updateDisplayName(nickname.trim());
-      }
-
-      await _ensureUserProgress(
-        credential.user!.uid,
-      );
-
-      emit(AuthSuccess(
-        credential.user!.uid,
-      ));
-    } on FirebaseAuthException catch (e){
-      debugPrint('========== SIGN UP ERROR ==========');
-      debugPrint('code: ${e.code}');
-      debugPrint('message: ${e.message}');
-      debugPrint('email: ${e.email}');
-      debugPrint('credential: ${e.credential}');
-      debugPrint('===================================');
-      emit(
-        AuthFailure(
-          'Firebase error: ${e.code}\n${e.message}',
-        ),
-      );
+      emit(const AuthLoading());
+      final uid = await _authRepository.signUp(email, password, nickname);
+      emit(AuthSuccess(uid));
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Ошибка регистрации Firebase: ${e.code} / ${e.message}');
+      emit(AuthFailure('Firebase error: ${e.code}\n${e.message}'));
     } catch (e) {
       emit(AuthFailure('Неизвестная ошибка: $e'));
     }
   }
 
+  /// Выполняет выход из текущего аккаунта.
   Future<void> signOut() async {
-    await _auth.signOut();
-    emit(AuthInitial()); // Возвращаем экран в начальное состояние
+    await _authRepository.signOut();
+    emit(const AuthInitial());
   }
-
-  Future<void> _ensureUserProgress( String uid, ) async {
-  final progress =
-      await _progressRepository.loadProgress(uid);
-
-  final isEmpty =
-      progress.learnedWords.isEmpty &&
-      progress.learningWords.isEmpty;
-
-  if (isEmpty) {
-    await _progressRepository.saveProgress(
-      uid,
-      ProgressModel.empty(),
-    );
-
-    debugPrint(
-      'Created empty progress document',
-    );
-  } else {
-    debugPrint(
-      'Progress loaded successfully',
-    );
-  }
-}
-
 }

@@ -10,11 +10,21 @@ import 'package:my_english_app/data/models/user_settings.dart';
 import 'package:my_english_app/data/models/user_stats.dart';
 import 'package:my_english_app/data/models/word.dart';
 import 'package:my_english_app/data/models/word_progress.dart';
+import 'package:my_english_app/data/repositories/auth_repository.dart';
+import 'package:my_english_app/data/repositories/progress_repository.dart';
 import 'package:my_english_app/data/repositories/settings_repository.dart';
 import 'package:my_english_app/data/repositories/words_repository.dart';
 import 'package:my_english_app/data/sources/asset/asset_words_source.dart';
 import 'package:my_english_app/data/sources/local/hive_progress_source.dart';
 import 'package:my_english_app/data/sources/local/hive_settings_source.dart';
+import 'package:my_english_app/features/auth/cubit/auth_cubit.dart';
+import 'package:my_english_app/features/auth/cubit/auth_state.dart';
+import 'package:my_english_app/features/dictionary/cubit/dictionary_cubit.dart';
+import 'package:my_english_app/features/dictionary/cubit/dictionary_state.dart';
+import 'package:my_english_app/features/learning/cubit/swipe_cubit.dart';
+import 'package:my_english_app/features/learning/cubit/swipe_state.dart';
+import 'package:my_english_app/features/profile/cubit/profile_cubit.dart';
+import 'package:my_english_app/features/profile/cubit/profile_state.dart';
 
 class _TestAssetBundle extends CachingAssetBundle {
   final String jsonPayload;
@@ -25,6 +35,109 @@ class _TestAssetBundle extends CachingAssetBundle {
   Future<ByteData> load(String key) async {
     final bytes = Uint8List.fromList(utf8.encode(jsonPayload));
     return ByteData.view(bytes.buffer);
+  }
+}
+
+class _FakeAuthRepository implements AuthRepository {
+  @override
+  final String? currentUid;
+
+  @override
+  final String? currentDisplayName;
+
+  @override
+  final String? currentEmail;
+
+  _FakeAuthRepository({
+    this.currentUid = 'user_1',
+    this.currentDisplayName = 'Алексей',
+    this.currentEmail = 'alex@example.com',
+  });
+
+  @override
+  Stream<String?> authStateChanges() => Stream.value(currentUid);
+
+  @override
+  Future<String> signIn(String email, String password) async =>
+      currentUid ?? 'user_1';
+
+  @override
+  Future<void> signOut() async {}
+
+  @override
+  Future<String> signUp(String email, String password, String nickname) async =>
+      currentUid ?? 'user_1';
+}
+
+class _FakeWordsRepository implements WordsRepository {
+  final List<Word> words;
+
+  _FakeWordsRepository(this.words);
+
+  @override
+  Future<List<Word>> getAllWords() async => words;
+
+  @override
+  List<String> getAvailableTopics() =>
+      words.map((w) => w.topic).toSet().toList();
+
+  @override
+  List<Word> getFilteredWords({String? level, String? topic}) {
+    return words.where((w) {
+      final matchesLevel =
+          level == null || w.level.toLowerCase() == level.toLowerCase();
+      final matchesTopic =
+          topic == null || w.topic.toLowerCase() == topic.toLowerCase();
+      return matchesLevel && matchesTopic;
+    }).toList();
+  }
+}
+
+class _FakeProgressRepository implements ProgressRepository {
+  final Map<int, WordProgress> progressMap;
+  UserStats stats;
+
+  _FakeProgressRepository({
+    Map<int, WordProgress>? progressMap,
+    UserStats? stats,
+  })  : progressMap = progressMap ?? {},
+        stats = stats ?? UserStats.empty();
+
+  @override
+  Future<List<int>> getWordsDueForReview(String uid) async => [];
+
+  @override
+  Future<Map<int, WordProgress>> loadAllProgress(String uid) async =>
+      progressMap;
+
+  @override
+  Future<UserStats> loadStats(String uid) async => stats;
+
+  @override
+  Future<void> syncWithCloud(String uid) async {}
+
+  @override
+  Future<void> updateStats(String uid, UserStats stats) async {
+    this.stats = stats;
+  }
+
+  @override
+  Future<void> updateWordProgress(String uid, WordProgress progress) async {
+    progressMap[progress.wordId] = progress;
+  }
+}
+
+class _FakeSettingsRepository implements SettingsRepository {
+  UserSettings settings;
+
+  _FakeSettingsRepository(this.settings);
+
+  @override
+  Future<UserSettings> loadSettings() async => settings;
+
+  @override
+  Future<void> saveSettings(UserSettings settings) async {
+    this.settings = settings;
   }
 }
 
@@ -212,6 +325,149 @@ void main() {
       expect(reopenedProgressSource.getWordProgress('user_1', 42), originalProgress);
       expect(reopenedProgressSource.getStats('user_1'), originalStats);
       expect(await reopenedSettingsRepo.loadSettings(), originalSettings);
+    });
+  });
+
+  group('Кубиты Фазы 2 (SwipeCubit, DictionaryCubit, ProfileCubit)', () {
+    const sampleWords = [
+      Word(id: 1, en: 'apple', ru: 'яблоко', level: 'a1', topic: 'food'),
+      Word(id: 2, en: 'book', ru: 'книга', level: 'a1', topic: 'education'),
+      Word(id: 3, en: 'journey', ru: 'путешествие', level: 'b1', topic: 'travel'),
+    ];
+
+    test('SwipeCubit загружает unseen слова, обновляет прогресс и достигает цели', () async {
+      final progressRepo = _FakeProgressRepository(
+        progressMap: {
+          3: const WordProgress(wordId: 3, status: WordStatus.learning),
+        },
+        stats: UserStats(
+          todayNewWords: 0,
+          lastStudyDate: DateTime.now(),
+        ),
+      );
+      final cubit = SwipeCubit(
+        _FakeWordsRepository(sampleWords),
+        progressRepo,
+        _FakeSettingsRepository(const UserSettings(dailyNewWordsGoal: 1)),
+        _FakeAuthRepository(),
+      );
+
+      await cubit.loadWords();
+
+      expect(cubit.state, isA<SwipeLoaded>());
+      final loaded = cubit.state as SwipeLoaded;
+      expect(loaded.words.map((w) => w.id).toList(), [1, 2]);
+      expect(loaded.dailyGoal, 1);
+
+      // Свайп влево («Знаю») переводит слово 1 в mastered
+      cubit.knowWord();
+      expect(progressRepo.progressMap[1]?.status, WordStatus.mastered);
+      expect(progressRepo.stats.totalWordsLearned, 1);
+
+      // Свайп вправо («Учу») переводит слово 2 в learning и завершает цель на сегодня
+      cubit.notKnowWord();
+      expect(progressRepo.progressMap[2]?.status, WordStatus.learning);
+      expect(progressRepo.progressMap[2]?.nextReview, isNotNull);
+      expect(cubit.state, const SwipeFinished(learnedCount: 1, dailyGoal: 1));
+
+      await cubit.close();
+    });
+
+    test('DictionaryCubit фильтрует слова по 3 секциям, уровню, теме и поиску', () async {
+      final progressRepo = _FakeProgressRepository(
+        progressMap: {
+          2: const WordProgress(wordId: 2, status: WordStatus.review),
+          3: const WordProgress(wordId: 3, status: WordStatus.mastered),
+        },
+      );
+      final cubit = DictionaryCubit(
+        _FakeWordsRepository(sampleWords),
+        progressRepo,
+        _FakeAuthRepository(),
+      );
+
+      await cubit.loadWords();
+      expect(cubit.state, isA<DictionaryLoaded>());
+
+      cubit.selectLevel('A1');
+      var loaded = cubit.state as DictionaryLoaded;
+      expect(loaded.newWordsFiltered.map((w) => w.id), [1]);
+      expect(loaded.learningWordsFiltered.map((w) => w.id), [2]);
+      expect(loaded.masteredWordsFiltered, isEmpty);
+
+      cubit.setFilterMode(DictionaryFilterMode.byTopic);
+      cubit.selectTopic('travel');
+      loaded = cubit.state as DictionaryLoaded;
+      expect(loaded.filterMode, DictionaryFilterMode.byTopic);
+      expect(loaded.masteredWordsFiltered.map((w) => w.id), [3]);
+
+      cubit.searchWords('путеш');
+      loaded = cubit.state as DictionaryLoaded;
+      expect(loaded.masteredWordsFiltered.length, 1);
+
+      await cubit.close();
+    });
+
+    test('ProfileCubit загружает данные профиля и рассчитывает точность квизов', () async {
+      final progressRepo = _FakeProgressRepository(
+        progressMap: {
+          1: const WordProgress(wordId: 1, status: WordStatus.mastered),
+          2: const WordProgress(wordId: 2, status: WordStatus.mastered),
+        },
+        stats: const UserStats(
+          currentStreak: 4,
+          longestStreak: 10,
+          totalWordsLearned: 1,
+          totalQuizCorrect: 15,
+          totalQuizWrong: 5,
+        ),
+      );
+
+      final cubit = ProfileCubit(
+        progressRepo,
+        _FakeAuthRepository(),
+      );
+
+      await cubit.loadProfile();
+      expect(cubit.state, isA<ProfileLoaded>());
+
+      final loaded = cubit.state as ProfileLoaded;
+      expect(loaded.nickname, 'Алексей');
+      expect(loaded.email, 'alex@example.com');
+      expect(loaded.stats.totalWordsLearned, 2);
+      expect(loaded.accuracyPercent, 75);
+
+      await cubit.close();
+    });
+
+    test('AuthCubit проверяет сессию, выполняет вход, регистрацию и выход', () async {
+      final guestAuth = AuthCubit(
+        _FakeAuthRepository(
+          currentUid: null,
+          currentDisplayName: null,
+          currentEmail: null,
+        ),
+      );
+      guestAuth.checkAuth();
+      expect(guestAuth.state, const AuthInitial());
+
+      await guestAuth.signIn('test@mail.ru', '123456');
+      expect(guestAuth.state, const AuthSuccess('user_1'));
+
+      await guestAuth.signOut();
+      expect(guestAuth.state, const AuthInitial());
+      await guestAuth.close();
+
+      final signedInAuth = AuthCubit(
+        _FakeAuthRepository(
+          currentUid: 'user_42',
+          currentDisplayName: 'Мария',
+          currentEmail: 'maria@mail.ru',
+        ),
+      );
+      signedInAuth.checkAuth();
+      expect(signedInAuth.state, const AuthSuccess('user_42'));
+      await signedInAuth.close();
     });
   });
 }
