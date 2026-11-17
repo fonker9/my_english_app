@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:my_english_app/core/srs/srs_engine.dart';
+import 'package:my_english_app/core/utils/levenshtein.dart';
 import 'package:my_english_app/core/utils/russian_plurals.dart';
 import 'package:my_english_app/data/models/user_settings.dart';
 import 'package:my_english_app/data/models/user_stats.dart';
@@ -27,6 +28,9 @@ import 'package:my_english_app/features/learning/cubit/quiz_cubit.dart';
 import 'package:my_english_app/features/learning/cubit/quiz_state.dart';
 import 'package:my_english_app/features/learning/cubit/swipe_cubit.dart';
 import 'package:my_english_app/features/learning/cubit/swipe_state.dart';
+import 'package:my_english_app/features/learning/cubit/writing_cubit.dart';
+import 'package:my_english_app/features/learning/cubit/writing_state.dart';
+import 'package:my_english_app/features/learning/ui/session_result_screen.dart';
 import 'package:my_english_app/features/profile/cubit/profile_cubit.dart';
 import 'package:my_english_app/features/profile/cubit/profile_state.dart';
 
@@ -372,7 +376,15 @@ void main() {
       cubit.notKnowWord();
       expect(progressRepo.progressMap[2]?.status, WordStatus.learning);
       expect(progressRepo.progressMap[2]?.nextReview, isNotNull);
-      expect(cubit.state, const SwipeFinished(learnedCount: 1, dailyGoal: 1));
+      expect(
+        cubit.state,
+        const SwipeFinished(
+          learnedCount: 1,
+          dailyGoal: 1,
+          sessionKnowCount: 1,
+          sessionLearnCount: 1,
+        ),
+      );
 
       await cubit.close();
     });
@@ -585,6 +597,100 @@ void main() {
       expect(progressRepo.stats.todayReviews, 2);
       expect(progressRepo.stats.totalQuizCorrect, 1);
       expect(progressRepo.stats.totalQuizWrong, 1);
+
+      await cubit.close();
+    });
+  });
+
+  group('Фаза 3 (Левенштейн, WritingCubit и SessionResult)', () {
+    test('levenshteinDistance и isAnswerAccepted допускают не более 1 опечатки', () {
+      expect(levenshteinDistance('apple', 'apple'), 0);
+      expect(levenshteinDistance('  Apple ', 'apple'), 0);
+      expect(levenshteinDistance('aple', 'apple'), 1);
+      expect(levenshteinDistance('applle', 'apple'), 1);
+      expect(levenshteinDistance('apx', 'apple'), 3);
+
+      expect(isAnswerAccepted('', 'apple'), isFalse);
+      expect(isAnswerAccepted('   ', 'apple'), isFalse);
+      expect(isAnswerAccepted('aple', 'apple'), isTrue);
+      expect(isAnswerAccepted('Apple', 'apple'), isTrue);
+      expect(isAnswerAccepted('apl', 'apple'), isFalse);
+    });
+
+    test('WritingCubit принимает опечатку <= 1, обрабатывает skipWord и завершает сессию', () async {
+      const words = [
+        Word(id: 1, en: 'apple', ru: 'яблоко', level: 'a1'),
+        Word(id: 2, en: 'book', ru: 'книга', level: 'a1'),
+        Word(id: 3, en: 'journey', ru: 'путешествие', level: 'b1'),
+      ];
+
+      final progressRepo = _FakeProgressRepository(
+        progressMap: {
+          1: const WordProgress(wordId: 1, status: WordStatus.learning),
+          2: const WordProgress(wordId: 2, status: WordStatus.learning),
+          3: const WordProgress(wordId: 3, status: WordStatus.learning),
+        },
+        stats: UserStats(lastStudyDate: DateTime.now()),
+      );
+
+      final cubit = WritingCubit(
+        _FakeWordsRepository(words),
+        progressRepo,
+        _FakeAuthRepository(),
+        Random(7),
+      );
+
+      await cubit.startSession();
+      expect(cubit.state, isA<WritingLoaded>());
+
+      var loaded = cubit.state as WritingLoaded;
+      final firstWord = loaded.currentWord;
+
+      // Опечатка длиной 1 символ (пропуск последнего символа) должна засчитаться
+      final typoInput =
+          firstWord.en.substring(0, firstWord.en.length - 1);
+      cubit.checkAnswer(typoInput);
+      loaded = cubit.state as WritingLoaded;
+      expect(loaded.answerStatus, WritingAnswerStatus.correct);
+      expect(loaded.correctCount, 1);
+
+      cubit.nextWord();
+      loaded = cubit.state as WritingLoaded;
+      final secondWord = loaded.currentWord;
+
+      // Кнопка «Не помню» -> wrong
+      cubit.skipWord();
+      loaded = cubit.state as WritingLoaded;
+      expect(loaded.answerStatus, WritingAnswerStatus.wrong);
+      expect(loaded.wrongCount, 1);
+      expect(loaded.wrongWords, [secondWord]);
+
+      cubit.nextWord();
+      loaded = cubit.state as WritingLoaded;
+      final thirdWord = loaded.currentWord;
+
+      // Грубая ошибка (> 1 опечатки) -> wrong
+      cubit.checkAnswer('zzzzzzzz');
+      loaded = cubit.state as WritingLoaded;
+      expect(loaded.answerStatus, WritingAnswerStatus.wrong);
+      expect(loaded.wrongCount, 2);
+      expect(loaded.wrongWords, [secondWord, thirdWord]);
+
+      cubit.nextWord();
+      expect(cubit.state, isA<WritingFinished>());
+      final finished = cubit.state as WritingFinished;
+      expect(finished.correctCount, 1);
+      expect(finished.wrongCount, 2);
+      expect(finished.wrongWords, [secondWord, thirdWord]);
+
+      final result = SessionResult(
+        correctCount: finished.correctCount,
+        wrongCount: finished.wrongCount,
+        wrongWords: finished.wrongWords,
+        retryRoute: '/learning/writing',
+      );
+      expect(result.totalCount, 3);
+      expect(result.accuracyPercent, 33);
 
       await cubit.close();
     });

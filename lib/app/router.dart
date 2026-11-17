@@ -10,7 +10,9 @@ import 'package:my_english_app/features/dictionary/ui/dictionary_main_screen.dar
 import 'package:my_english_app/features/home/ui/home_screen.dart';
 import 'package:my_english_app/features/learning/ui/learning_hub_screen.dart';
 import 'package:my_english_app/features/learning/ui/quiz_screen.dart';
+import 'package:my_english_app/features/learning/ui/session_result_screen.dart';
 import 'package:my_english_app/features/learning/ui/swipe_screen.dart';
+import 'package:my_english_app/features/learning/ui/writing_screen.dart';
 import 'package:my_english_app/features/main_tabs_screen.dart';
 import 'package:my_english_app/features/profile/ui/profile_screen.dart';
 import 'package:my_english_app/features/profile/ui/settings_screen.dart';
@@ -96,6 +98,16 @@ GoRouter createAppRouter(AuthCubit authCubit) {
       GoRoute(
         path: '/learning/quiz',
         builder: (_, _) => const QuizScreen(),
+      ),
+      GoRoute(
+        path: '/learning/writing',
+        builder: (_, _) => const WritingScreen(),
+      ),
+      GoRoute(
+        path: '/learning/result',
+        builder: (_, state) => SessionResultScreen(
+          extra: state.extra as SessionResult,
+        ),
       ),
 
       // --- Settings ---

@@ -94,17 +94,7 @@ class LearningHubScreen extends StatelessWidget {
                           description: 'Ввод английского слова вручную (SRS)',
                           availabilityText:
                               'Для повторения: ${RussianPlurals.wordsWithCount(dueCount)}',
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                backgroundColor: AppColors.primary,
-                                content: Text(
-                                  'Режим «Написание» появится на следующем этапе',
-                                  style: TextStyle(color: AppColors.background),
-                                ),
-                              ),
-                            );
-                          },
+                          onTap: () => _openMode(context, '/learning/writing'),
                         ),
                       ],
                     );

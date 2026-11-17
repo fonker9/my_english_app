@@ -6,6 +6,7 @@ import 'package:my_english_app/app/theme/app_colors.dart';
 import 'package:my_english_app/app/theme/app_text_styles.dart';
 import 'package:my_english_app/features/learning/cubit/swipe_cubit.dart';
 import 'package:my_english_app/features/learning/cubit/swipe_state.dart';
+import 'package:my_english_app/features/learning/ui/session_result_screen.dart';
 
 /// Экран свайп-карточек для знакомства с новыми словами.
 class SwipeScreen extends StatefulWidget {
@@ -58,7 +59,23 @@ class _SwipeScreenState extends State<SwipeScreen> {
                 ),
               ),
             Expanded(
-              child: BlocBuilder<SwipeCubit, SwipeState>(
+              child: BlocConsumer<SwipeCubit, SwipeState>(
+                listenWhen: (previous, current) =>
+                    previous is SwipeLoaded && current is SwipeFinished,
+                listener: (context, state) {
+                  if (state is SwipeFinished) {
+                    context.pushReplacement(
+                      '/learning/result',
+                      extra: SessionResult(
+                        correctCount:
+                            state.sessionKnowCount + state.sessionLearnCount,
+                        wrongCount: 0,
+                        wrongWords: const [],
+                        retryRoute: '/learning/swipe',
+                      ),
+                    );
+                  }
+                },
                 builder: (context, state) {
             if (state is SwipeLoading) {
               return const Center(

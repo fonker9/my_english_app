@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:my_english_app/app/theme/app_colors.dart';
 import 'package:my_english_app/app/theme/app_text_styles.dart';
 import 'package:my_english_app/core/di/service_locator.dart';
-import 'package:my_english_app/core/utils/russian_plurals.dart';
 import 'package:my_english_app/features/learning/cubit/quiz_cubit.dart';
 import 'package:my_english_app/features/learning/cubit/quiz_state.dart';
+import 'package:my_english_app/features/learning/ui/session_result_screen.dart';
 
 /// Экран квиза (4 варианта ответа, смешанное направление en ↔ ru).
 class QuizScreen extends StatelessWidget {
@@ -55,9 +55,22 @@ class _QuizViewState extends State<_QuizView> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: BlocBuilder<QuizCubit, QuizState>(
+        child: BlocConsumer<QuizCubit, QuizState>(
+          listener: (context, state) {
+            if (state is QuizFinished) {
+              context.pushReplacement(
+                '/learning/result',
+                extra: SessionResult(
+                  correctCount: state.correctCount,
+                  wrongCount: state.wrongCount,
+                  wrongWords: state.wrongWords,
+                  retryRoute: '/learning/quiz',
+                ),
+              );
+            }
+          },
           builder: (context, state) {
-            if (state is QuizLoading) {
+            if (state is QuizLoading || state is QuizFinished) {
               return const Center(
                 child: CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
@@ -82,14 +95,6 @@ class _QuizViewState extends State<_QuizView> {
                     'Сначала отметьте новые слова кнопкой «Учу» в карточках или возвращайтесь по расписанию повторений.',
                 buttonLabel: 'Назад',
                 onPressed: () => context.pop(),
-              );
-            }
-
-            if (state is QuizFinished) {
-              return _QuizSummaryView(
-                state: state,
-                onRetry: () => context.read<QuizCubit>().startQuiz(),
-                onHome: () => context.go('/home'),
               );
             }
 
@@ -297,137 +302,6 @@ class _QuizViewState extends State<_QuizView> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _QuizSummaryView extends StatelessWidget {
-  final QuizFinished state;
-  final VoidCallback onRetry;
-  final VoidCallback onHome;
-
-  const _QuizSummaryView({
-    required this.state,
-    required this.onRetry,
-    required this.onHome,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final title = state.accuracyPercent >= 70
-        ? 'Отличная работа!'
-        : 'Можно лучше!';
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 16),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.screenTitle,
-          ),
-          const SizedBox(height: 20),
-
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  '${state.accuracyPercent}%',
-                  style: AppTextStyles.authTitle,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Правильных: ${state.correctCount} из ${state.totalQuestions}',
-                  style: AppTextStyles.dailyCounter,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Ошибок: ${RussianPlurals.wordsWithCount(state.wrongCount)}',
-                  style: AppTextStyles.wordTranslation,
-                ),
-              ],
-            ),
-          ),
-
-          if (state.wrongWords.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            const Text(
-              'Слова с ошибками',
-              style: AppTextStyles.sectionTitle,
-            ),
-            const SizedBox(height: 12),
-            ...state.wrongWords.map(
-              (word) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          word.en,
-                          style: AppTextStyles.daysOneTitle,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          word.ru,
-                          textAlign: TextAlign.right,
-                          style: AppTextStyles.wordTranslation,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 28),
-          ElevatedButton(
-            onPressed: onRetry,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.secondary,
-              foregroundColor: AppColors.background,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            child: const Text('Ещё раз', style: AppTextStyles.buttonMedium),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: onHome,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.background,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            child: const Text('На главную', style: AppTextStyles.buttonMedium),
-          ),
-        ],
       ),
     );
   }

@@ -1,3 +1,4 @@
+import '../../data/models/user_stats.dart';
 import '../../data/models/word_progress.dart';
 
 /// Движок интервального повторения (Spaced Repetition System).
@@ -47,5 +48,52 @@ class SrsEngine {
         isSynced: false,
       );
     }
+  }
+
+  /// Сбрасывает дневные счётчики статистики, если [stats.lastStudyDate] относится
+  /// к предыдущему дню относительно [now].
+  static UserStats resetDailyCountersIfNeeded(UserStats stats, [DateTime? now]) {
+    final reference = now ?? DateTime.now();
+    if (stats.lastStudyDate != null &&
+        !isSameDay(stats.lastStudyDate!, reference) &&
+        (stats.todayNewWords != 0 || stats.todayReviews != 0)) {
+      return stats.copyWith(todayNewWords: 0, todayReviews: 0);
+    }
+    return stats;
+  }
+
+  /// Обновляет серию дней (streak) и дату последнего занятия в [stats].
+  static UserStats markStudyActivity(UserStats stats, [DateTime? now]) {
+    final reference = now ?? DateTime.now();
+    final lastDate = stats.lastStudyDate;
+    int newStreak;
+
+    if (lastDate != null && isSameDay(lastDate, reference)) {
+      newStreak = stats.currentStreak > 0 ? stats.currentStreak : 1;
+    } else if (lastDate != null && _isYesterday(lastDate, reference)) {
+      newStreak = stats.currentStreak + 1;
+    } else {
+      newStreak = 1;
+    }
+
+    final newLongest =
+        newStreak > stats.longestStreak ? newStreak : stats.longestStreak;
+
+    return stats.copyWith(
+      currentStreak: newStreak,
+      longestStreak: newLongest,
+      lastStudyDate: reference,
+    );
+  }
+
+  /// Проверяет, относятся ли две даты к одному календарному дню.
+  static bool isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  static bool _isYesterday(DateTime date, DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(date.year, date.month, date.day);
+    return today.difference(target).inDays == 1;
   }
 }

@@ -12,6 +12,7 @@ import '../../features/auth/cubit/auth_cubit.dart';
 import '../../features/dictionary/cubit/dictionary_cubit.dart';
 import '../../features/learning/cubit/quiz_cubit.dart';
 import '../../features/learning/cubit/swipe_cubit.dart';
+import '../../features/learning/cubit/writing_cubit.dart';
 import '../../features/profile/cubit/profile_cubit.dart';
 
 /// Глобальный экземпляр Service Locator.
@@ -54,6 +55,12 @@ Future<void> initDependencies() async {
   );
   sl.registerFactory(
     () => QuizCubit(
+      sl<WordsRepository>(),
+      sl<ProgressRepository>(),
+    ),
+  );
+  sl.registerFactory(
+    () => WritingCubit(
       sl<WordsRepository>(),
       sl<ProgressRepository>(),
     ),

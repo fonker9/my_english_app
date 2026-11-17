@@ -18,6 +18,8 @@ class SwipeCubit extends Cubit<SwipeState> {
 
   Map<int, WordProgress> _progressMap = {};
   UserStats _stats = UserStats.empty();
+  int _sessionKnowCount = 0;
+  int _sessionLearnCount = 0;
 
   SwipeCubit(
     this._wordsRepository,
@@ -31,6 +33,8 @@ class SwipeCubit extends Cubit<SwipeState> {
   Future<void> loadWords() async {
     try {
       emit(const SwipeLoading());
+      _sessionKnowCount = 0;
+      _sessionLearnCount = 0;
 
       final uid = _authRepository.currentUid;
       if (uid == null) {
@@ -124,6 +128,7 @@ class SwipeCubit extends Cubit<SwipeState> {
     unawaited(_progressRepository.updateWordProgress(uid, updatedProgress));
 
     final newLearnedCount = currentState.learnedCount + 1;
+    _sessionLearnCount++;
     _stats = _markStudyActivity(_stats, now).copyWith(
       todayNewWords: newLearnedCount,
     );
@@ -136,6 +141,8 @@ class SwipeCubit extends Cubit<SwipeState> {
         SwipeFinished(
           learnedCount: newLearnedCount,
           dailyGoal: currentState.dailyGoal,
+          sessionKnowCount: _sessionKnowCount,
+          sessionLearnCount: _sessionLearnCount,
         ),
       );
     } else {
@@ -176,6 +183,7 @@ class SwipeCubit extends Cubit<SwipeState> {
     _progressMap[currentWord.id] = updatedProgress;
     unawaited(_progressRepository.updateWordProgress(uid, updatedProgress));
 
+    _sessionKnowCount++;
     _stats = _markStudyActivity(_stats, now).copyWith(
       totalWordsLearned: _stats.totalWordsLearned + 1,
     );
@@ -187,6 +195,8 @@ class SwipeCubit extends Cubit<SwipeState> {
         SwipeFinished(
           learnedCount: currentState.learnedCount,
           dailyGoal: currentState.dailyGoal,
+          sessionKnowCount: _sessionKnowCount,
+          sessionLearnCount: _sessionLearnCount,
         ),
       );
     } else {

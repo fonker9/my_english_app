@@ -75,14 +75,23 @@ class SwipeLoaded extends SwipeState {
 class SwipeFinished extends SwipeState {
   final int learnedCount;
   final int dailyGoal;
+  final int sessionKnowCount;
+  final int sessionLearnCount;
 
   const SwipeFinished({
     required this.learnedCount,
     required this.dailyGoal,
+    this.sessionKnowCount = 0,
+    this.sessionLearnCount = 0,
   });
 
   @override
-  List<Object?> get props => [learnedCount, dailyGoal];
+  List<Object?> get props => [
+        learnedCount,
+        dailyGoal,
+        sessionKnowCount,
+        sessionLearnCount,
+      ];
 }
 
 /// В базе больше нет новых (unseen) слов.
