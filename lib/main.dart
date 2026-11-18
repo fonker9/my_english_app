@@ -8,6 +8,7 @@ import 'package:my_english_app/data/models/user_stats.dart';
 import 'package:my_english_app/data/models/word_progress.dart';
 import 'package:my_english_app/data/sources/local/hive_progress_source.dart';
 import 'package:my_english_app/data/sources/local/hive_settings_source.dart';
+import 'package:my_english_app/features/notifications/notification_service.dart';
 import 'package:my_english_app/firebase_options.dart';
 
 void main() async {
@@ -30,6 +31,9 @@ void main() async {
 
   // 3. DI (GetIt)
   await initDependencies();
+
+  // 4. Notifications
+  await sl<NotificationService>().init();
 
   runApp(const MyApp());
 }

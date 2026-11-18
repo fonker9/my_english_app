@@ -37,6 +37,107 @@ class FirestoreProgressSource {
     return result;
   }
 
+  /// Конвертирует старый формат документа `users_progress/{uid}`
+  /// (`learnedWords`, `learningWords`) в карту [WordProgress].
+  static Map<int, WordProgress> parseLegacyDocument(
+    Map<String, dynamic>? data, {
+    Map<int, WordProgress> existing = const {},
+    DateTime? now,
+  }) {
+    if (data == null || data['migratedToV2'] == true) {
+      return const {};
+    }
+
+    final learnedRaw = data['learnedWords'] as List<dynamic>? ?? const [];
+    final learningRaw = data['learningWords'] as List<dynamic>? ?? const [];
+    if (learnedRaw.isEmpty && learningRaw.isEmpty) {
+      return const {};
+    }
+
+    final referenceTime = now ?? DateTime.now();
+    final updatedAt = _parseDate(data['updatedAt']) ?? referenceTime;
+    final result = <int, WordProgress>{};
+
+    for (final rawId in learnedRaw) {
+      if (rawId is! num) continue;
+      final wordId = rawId.toInt();
+      if (existing.containsKey(wordId)) continue;
+
+      result[wordId] = WordProgress(
+        wordId: wordId,
+        status: WordStatus.mastered,
+        consecutiveCorrect: 5,
+        totalCorrect: 5,
+        totalWrong: 0,
+        lastReviewed: updatedAt,
+        nextReview: null,
+        firstSeen: updatedAt,
+        isSynced: true,
+      );
+    }
+
+    for (final rawId in learningRaw) {
+      if (rawId is! num) continue;
+      final wordId = rawId.toInt();
+      if (result.containsKey(wordId) || existing.containsKey(wordId)) continue;
+
+      result[wordId] = WordProgress(
+        wordId: wordId,
+        status: WordStatus.learning,
+        consecutiveCorrect: 0,
+        totalCorrect: 0,
+        totalWrong: 0,
+        lastReviewed: updatedAt,
+        nextReview: referenceTime,
+        firstSeen: updatedAt,
+        isSynced: true,
+      );
+    }
+
+    return result;
+  }
+
+  /// Проверяет и выполняет однократную миграцию старого формата Firestore
+  /// (`learnedWords`/`learningWords`) в подколлекцию `words/{wordId}`.
+  Future<Map<int, WordProgress>> migrateLegacyFormatIfNeeded(
+    String uid, {
+    Map<int, WordProgress> existingRemote = const {},
+  }) async {
+    final doc = await _userDoc(uid).get();
+    if (!doc.exists) return const {};
+
+    final data = doc.data();
+    if (data == null || data['migratedToV2'] == true) {
+      return const {};
+    }
+
+    final hasLegacyFields =
+        data.containsKey('learnedWords') || data.containsKey('learningWords');
+    if (!hasLegacyFields) {
+      return const {};
+    }
+
+    final migrated = parseLegacyDocument(data, existing: existingRemote);
+    if (migrated.isNotEmpty) {
+      await setBatchWordProgress(uid, migrated.values.toList());
+    }
+
+    final learnedCount =
+        migrated.values.where((p) => p.status == WordStatus.mastered).length;
+    final updatePayload = <String, dynamic>{
+      'migratedToV2': true,
+      'learnedWords': FieldValue.delete(),
+      'learningWords': FieldValue.delete(),
+    };
+    if (data['stats'] == null && learnedCount > 0) {
+      updatePayload['stats'] =
+          UserStats(totalWordsLearned: learnedCount).toFirestore();
+    }
+
+    await _userDoc(uid).set(updatePayload, SetOptions(merge: true));
+    return migrated;
+  }
+
   /// Сохраняет прогресс по одному слову в Firestore.
   Future<void> setWordProgress(String uid, WordProgress progress) async {
     await _wordsCollection(uid)
@@ -82,5 +183,14 @@ class FirestoreProgressSource {
       {'stats': stats.toFirestore()},
       SetOptions(merge: true),
     );
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    return null;
   }
 }

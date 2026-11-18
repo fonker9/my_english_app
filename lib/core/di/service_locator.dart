@@ -13,7 +13,9 @@ import '../../features/dictionary/cubit/dictionary_cubit.dart';
 import '../../features/learning/cubit/quiz_cubit.dart';
 import '../../features/learning/cubit/swipe_cubit.dart';
 import '../../features/learning/cubit/writing_cubit.dart';
+import '../../features/notifications/notification_service.dart';
 import '../../features/profile/cubit/profile_cubit.dart';
+import '../sync/sync_service.dart';
 
 /// Глобальный экземпляр Service Locator.
 final sl = GetIt.instance;
@@ -35,6 +37,7 @@ Future<void> initDependencies() async {
     () => ProgressRepositoryImpl(
       sl<HiveProgressSource>(),
       sl<FirestoreProgressSource>(),
+      sl<SyncService>(),
     ),
   );
   sl.registerLazySingleton<AuthRepository>(
@@ -43,6 +46,15 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<SettingsRepository>(
     () => SettingsRepositoryImpl(sl<HiveSettingsSource>()),
   );
+
+  // --- Services ---
+  sl.registerLazySingleton(
+    () => SyncService(
+      sl<HiveProgressSource>(),
+      sl<FirestoreProgressSource>(),
+    ),
+  );
+  sl.registerLazySingleton(() => NotificationService());
 
   // --- Cubits ---
   sl.registerFactory(() => AuthCubit(sl<AuthRepository>()));

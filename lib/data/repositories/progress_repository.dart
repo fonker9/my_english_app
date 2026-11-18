@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../../core/sync/sync_service.dart';
 import '../models/user_stats.dart';
 import '../models/word_progress.dart';
 import '../sources/local/hive_progress_source.dart';
@@ -29,9 +30,13 @@ abstract class ProgressRepository {
 /// Local-first реализация [ProgressRepository] поверх Hive и Cloud Firestore.
 class ProgressRepositoryImpl implements ProgressRepository {
   final HiveProgressSource _localSource;
-  final FirestoreProgressSource _remoteSource;
+  final SyncService _syncService;
 
-  ProgressRepositoryImpl(this._localSource, this._remoteSource);
+  ProgressRepositoryImpl(
+    this._localSource,
+    FirestoreProgressSource remoteSource, [
+    SyncService? syncService,
+  ]) : _syncService = syncService ?? SyncService(_localSource, remoteSource);
 
   @override
   Future<Map<int, WordProgress>> loadAllProgress(String uid) async {
@@ -101,59 +106,12 @@ class ProgressRepositoryImpl implements ProgressRepository {
 
   @override
   Future<void> syncWithCloud(String uid) async {
-    // 1. Отправляем несинхронизированные локальные изменения в Firestore.
-    final unsynced = _localSource.getUnsyncedProgress(uid);
-    if (unsynced.isNotEmpty) {
-      await _remoteSource.setBatchWordProgress(uid, unsynced);
-      final syncedMap = <int, WordProgress>{
-        for (final item in unsynced) item.wordId: item.copyWith(isSynced: true),
-      };
-      await _localSource.putAllProgress(uid, syncedMap);
-    }
-
-    // 2. Загружаем облачное состояние и мержим с локальным по lastReviewed.
-    final remoteMap = await _remoteSource.fetchAllProgress(uid);
-    final localMap = _localSource.getAllProgress(uid);
-    final toSaveLocally = <int, WordProgress>{};
-
-    for (final entry in remoteMap.entries) {
-      final wordId = entry.key;
-      final remoteItem = entry.value;
-      final localItem = localMap[wordId];
-
-      if (_shouldPreferRemote(localItem, remoteItem)) {
-        toSaveLocally[wordId] = remoteItem.copyWith(isSynced: true);
-      }
-    }
-
-    if (toSaveLocally.isNotEmpty) {
-      await _localSource.putAllProgress(uid, toSaveLocally);
-    }
-
-    // 3. Синхронизируем статистику.
-    final localStats = _localSource.getStats(uid);
-    await _syncStats(uid, localStats);
-  }
-
-  bool _shouldPreferRemote(WordProgress? local, WordProgress remote) {
-    if (local == null) return true;
-
-    final localDate = local.lastReviewed;
-    final remoteDate = remote.lastReviewed;
-
-    if (remoteDate == null) return false;
-    if (localDate == null) return true;
-
-    return remoteDate.isAfter(localDate);
+    await _syncService.syncAll(uid);
   }
 
   Future<void> _syncSingleWordToCloud(String uid, WordProgress progress) async {
     try {
-      await _remoteSource.setWordProgress(uid, progress);
-      await _localSource.putWordProgress(
-        uid,
-        progress.copyWith(isSynced: true),
-      );
+      await _syncService.syncSingleWord(uid, progress);
     } catch (e) {
       debugPrint('Ошибка синхронизации слова ${progress.wordId}: $e');
     }
@@ -161,7 +119,7 @@ class ProgressRepositoryImpl implements ProgressRepository {
 
   Future<void> _syncStatsToCloud(String uid, UserStats stats) async {
     try {
-      await _remoteSource.setStats(uid, stats);
+      await _syncService.pushStats(uid, stats);
     } catch (e) {
       debugPrint('Ошибка синхронизации статистики: $e');
     }
@@ -177,27 +135,9 @@ class ProgressRepositoryImpl implements ProgressRepository {
 
   Future<void> _safeSyncStatsFromCloud(String uid, UserStats localStats) async {
     try {
-      await _syncStats(uid, localStats);
+      await _syncService.syncStats(uid, localStats);
     } catch (e) {
       debugPrint('Фоновая синхронизация статистики не удалась: $e');
-    }
-  }
-
-  Future<void> _syncStats(String uid, UserStats localStats) async {
-    final remoteStats = await _remoteSource.fetchStats(uid);
-    if (remoteStats == null) {
-      if (localStats != UserStats.empty()) {
-        await _remoteSource.setStats(uid, localStats);
-      }
-      return;
-    }
-
-    final localDate = localStats.lastStudyDate;
-    final remoteDate = remoteStats.lastStudyDate;
-
-    if (remoteDate != null &&
-        (localDate == null || remoteDate.isAfter(localDate))) {
-      await _localSource.putStats(uid, remoteStats);
     }
   }
 }

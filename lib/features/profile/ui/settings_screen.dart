@@ -7,6 +7,7 @@ import 'package:my_english_app/core/di/service_locator.dart';
 import 'package:my_english_app/data/models/user_settings.dart';
 import 'package:my_english_app/data/repositories/settings_repository.dart';
 import 'package:my_english_app/features/learning/cubit/swipe_cubit.dart';
+import 'package:my_english_app/features/notifications/notification_service.dart';
 import 'package:my_english_app/features/profile/cubit/profile_cubit.dart';
 
 /// Экран настроек цели на день, уведомлений и информации о приложении.
@@ -46,6 +47,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _settings = updated;
     });
     await _settingsRepository.saveSettings(updated);
+    if (sl.isRegistered<NotificationService>()) {
+      await sl<NotificationService>().applySettings(updated);
+    }
     if (!mounted) return;
     context.read<ProfileCubit>().loadProfile();
     context.read<SwipeCubit>().refreshWords();

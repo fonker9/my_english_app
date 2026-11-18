@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:my_english_app/core/srs/srs_engine.dart';
+import 'package:my_english_app/core/sync/sync_service.dart';
 import 'package:my_english_app/core/utils/levenshtein.dart';
 import 'package:my_english_app/core/utils/russian_plurals.dart';
 import 'package:my_english_app/data/models/user_settings.dart';
@@ -20,6 +21,7 @@ import 'package:my_english_app/data/repositories/words_repository.dart';
 import 'package:my_english_app/data/sources/asset/asset_words_source.dart';
 import 'package:my_english_app/data/sources/local/hive_progress_source.dart';
 import 'package:my_english_app/data/sources/local/hive_settings_source.dart';
+import 'package:my_english_app/data/sources/remote/firestore_progress_source.dart';
 import 'package:my_english_app/features/auth/cubit/auth_cubit.dart';
 import 'package:my_english_app/features/auth/cubit/auth_state.dart';
 import 'package:my_english_app/features/dictionary/cubit/dictionary_cubit.dart';
@@ -31,6 +33,7 @@ import 'package:my_english_app/features/learning/cubit/swipe_state.dart';
 import 'package:my_english_app/features/learning/cubit/writing_cubit.dart';
 import 'package:my_english_app/features/learning/cubit/writing_state.dart';
 import 'package:my_english_app/features/learning/ui/session_result_screen.dart';
+import 'package:my_english_app/features/notifications/notification_service.dart';
 import 'package:my_english_app/features/profile/cubit/profile_cubit.dart';
 import 'package:my_english_app/features/profile/cubit/profile_state.dart';
 
@@ -693,6 +696,98 @@ void main() {
       expect(result.accuracyPercent, 33);
 
       await cubit.close();
+    });
+  });
+
+  group('Фаза 3 (SyncService, NotificationService и миграция Firestore)', () {
+    test('SyncService.resolveConflict выбирает запись с более поздним lastReviewed', () {
+      final earlier = DateTime(2026, 11, 17, 10, 0);
+      final later = DateTime(2026, 11, 17, 12, 0);
+
+      final localOlder = WordProgress(
+        wordId: 1,
+        status: WordStatus.learning,
+        lastReviewed: earlier,
+        isSynced: false,
+      );
+      final remoteNewer = WordProgress(
+        wordId: 1,
+        status: WordStatus.review,
+        consecutiveCorrect: 1,
+        lastReviewed: later,
+        isSynced: false,
+      );
+
+      final resolvedRemote = SyncService.resolveConflict(localOlder, remoteNewer);
+      expect(resolvedRemote.status, WordStatus.review);
+      expect(resolvedRemote.isSynced, isTrue);
+
+      final localNewer = WordProgress(
+        wordId: 2,
+        status: WordStatus.mastered,
+        lastReviewed: later,
+        isSynced: false,
+      );
+      final remoteOlder = WordProgress(
+        wordId: 2,
+        status: WordStatus.learning,
+        lastReviewed: earlier,
+        isSynced: true,
+      );
+
+      final resolvedLocal = SyncService.resolveConflict(localNewer, remoteOlder);
+      expect(resolvedLocal.status, WordStatus.mastered);
+      expect(resolvedLocal, localNewer);
+    });
+
+    test('FirestoreProgressSource.parseLegacyDocument конвертирует старый формат в WordProgress', () {
+      final now = DateTime(2026, 11, 17, 18, 0);
+      final legacyData = {
+        'learnedWords': [1, 2],
+        'learningWords': [2, 3],
+        'updatedAt': DateTime(2026, 11, 16, 9, 0),
+      };
+
+      final migrated = FirestoreProgressSource.parseLegacyDocument(
+        legacyData,
+        existing: const {
+          1: WordProgress(wordId: 1, status: WordStatus.mastered),
+        },
+        now: now,
+      );
+
+      // Слово 1 уже есть в existing -> пропускается
+      expect(migrated.containsKey(1), isFalse);
+      // Слово 2 есть в обоих списках -> приоритет у learnedWords (mastered)
+      expect(migrated[2]?.status, WordStatus.mastered);
+      expect(migrated[2]?.consecutiveCorrect, 5);
+      expect(migrated[2]?.isSynced, isTrue);
+      // Слово 3 -> learning
+      expect(migrated[3]?.status, WordStatus.learning);
+      expect(migrated[3]?.nextReview, now);
+
+      // Повторная миграция при migratedToV2 == true не должна выполняться
+      final alreadyMigrated = FirestoreProgressSource.parseLegacyDocument({
+        ...legacyData,
+        'migratedToV2': true,
+      });
+      expect(alreadyMigrated, isEmpty);
+    });
+
+    test('NotificationService.nextScheduledDateTime переносит прошедшее время на завтра', () {
+      final now = DateTime(2026, 11, 17, 20, 0);
+
+      final laterToday = NotificationService.nextScheduledDateTime(
+        const TimeOfDay(hour: 21, minute: 30),
+        now,
+      );
+      expect(laterToday, DateTime(2026, 11, 17, 21, 30));
+
+      final tomorrow = NotificationService.nextScheduledDateTime(
+        const TimeOfDay(hour: 19, minute: 0),
+        now,
+      );
+      expect(tomorrow, DateTime(2026, 11, 18, 19, 0));
     });
   });
 }
