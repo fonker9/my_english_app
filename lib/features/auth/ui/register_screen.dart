@@ -206,7 +206,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               backgroundColor: AppColors.primary,
                               content: Text(
                                 state.error,
-                                style: const TextStyle(color: AppColors.background),
+                                style: AppTextStyles.snackbar,
                               ),
                             ),
                           );

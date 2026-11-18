@@ -8,6 +8,15 @@ import '../sources/remote/firestore_progress_source.dart';
 
 /// Репозиторий прогресса обучения и статистики пользователя (Local-first).
 abstract class ProgressRepository {
+  /// Поток `uid` пользователей, для которых фоновая синхронизация обновила локальные данные из облака.
+  Stream<String> get cloudUpdates;
+
+  /// Синхронно возвращает закэшированный прогресс из Hive без запуска синхронизации.
+  Map<int, WordProgress> getLocalProgress(String uid);
+
+  /// Синхронно возвращает локальную статистику из Hive без запуска синхронизации.
+  UserStats getLocalStats(String uid);
+
   /// Загружает прогресс по всем словам для текущего пользователя.
   Future<Map<int, WordProgress>> loadAllProgress(String uid);
 
@@ -31,12 +40,24 @@ abstract class ProgressRepository {
 class ProgressRepositoryImpl implements ProgressRepository {
   final HiveProgressSource _localSource;
   final SyncService _syncService;
+  final StreamController<String> _cloudUpdatesController =
+      StreamController<String>.broadcast();
 
   ProgressRepositoryImpl(
     this._localSource,
     FirestoreProgressSource remoteSource, [
     SyncService? syncService,
   ]) : _syncService = syncService ?? SyncService(_localSource, remoteSource);
+
+  @override
+  Stream<String> get cloudUpdates => _cloudUpdatesController.stream;
+
+  @override
+  Map<int, WordProgress> getLocalProgress(String uid) =>
+      _localSource.getAllProgress(uid);
+
+  @override
+  UserStats getLocalStats(String uid) => _localSource.getStats(uid);
 
   @override
   Future<Map<int, WordProgress>> loadAllProgress(String uid) async {
@@ -64,17 +85,18 @@ class ProgressRepositoryImpl implements ProgressRepository {
     final localStats = _localSource.getStats(uid);
 
     // Фоново подтягиваем облачную статистику.
-    unawaited(_safeSyncStatsFromCloud(uid, localStats));
+    unawaited(_safeSyncStatsFromCloud(uid));
 
     return localStats;
   }
 
   @override
   Future<void> updateStats(String uid, UserStats stats) async {
-    await _localSource.putStats(uid, stats);
+    final localStats = stats.copyWith(isSynced: false);
+    await _localSource.putStats(uid, localStats);
 
     // Запись в Firestore — fire-and-forget с обработкой ошибок.
-    unawaited(_syncStatsToCloud(uid, stats));
+    unawaited(_syncStatsToCloud(uid, localStats));
   }
 
   @override
@@ -106,7 +128,10 @@ class ProgressRepositoryImpl implements ProgressRepository {
 
   @override
   Future<void> syncWithCloud(String uid) async {
-    await _syncService.syncAll(uid);
+    final result = await _syncService.syncAllWithStatus(uid);
+    if (result.hasRemoteUpdates && !_cloudUpdatesController.isClosed) {
+      _cloudUpdatesController.add(uid);
+    }
   }
 
   Future<void> _syncSingleWordToCloud(String uid, WordProgress progress) async {
@@ -133,9 +158,12 @@ class ProgressRepositoryImpl implements ProgressRepository {
     }
   }
 
-  Future<void> _safeSyncStatsFromCloud(String uid, UserStats localStats) async {
+  Future<void> _safeSyncStatsFromCloud(String uid) async {
     try {
-      await _syncService.syncStats(uid, localStats);
+      final hasUpdates = await _syncService.syncStats(uid);
+      if (hasUpdates && !_cloudUpdatesController.isClosed) {
+        _cloudUpdatesController.add(uid);
+      }
     } catch (e) {
       debugPrint('Фоновая синхронизация статистики не удалась: $e');
     }

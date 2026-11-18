@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_english_app/core/di/service_locator.dart';
+import 'package:my_english_app/data/models/word_progress.dart';
 import 'package:my_english_app/data/repositories/auth_repository.dart';
 import 'package:my_english_app/data/repositories/progress_repository.dart';
 import 'package:my_english_app/data/repositories/words_repository.dart';
@@ -13,12 +15,27 @@ class DictionaryCubit extends Cubit<DictionaryState> {
   final ProgressRepository _progressRepository;
   final AuthRepository _authRepository;
 
+  StreamSubscription<String>? _cloudUpdatesSub;
+  String? _pendingLevel;
+  String? _pendingTopic;
+
   DictionaryCubit(
     this._wordsRepository,
     this._progressRepository, [
     AuthRepository? authRepository,
   ])  : _authRepository = authRepository ?? sl<AuthRepository>(),
-        super(const DictionaryLoading());
+        super(const DictionaryLoading()) {
+    _cloudUpdatesSub = _progressRepository.cloudUpdates.listen((updatedUid) {
+      if (isClosed || updatedUid != _authRepository.currentUid) return;
+      if (state is DictionaryLoaded) {
+        final currentState = state as DictionaryLoaded;
+        final updatedProgress = Map<int, WordProgress>.from(
+          _progressRepository.getLocalProgress(updatedUid),
+        );
+        emit(currentState.copyWith(progressMap: updatedProgress));
+      }
+    });
+  }
 
   /// Загружает слова из assets, список тем и прогресс текущего пользователя.
   Future<void> loadWords() async {
@@ -40,6 +57,8 @@ class DictionaryCubit extends Cubit<DictionaryState> {
           allWords: words,
           progressMap: progressMap,
           availableTopics: topics,
+          selectedLevel: _pendingLevel,
+          selectedTopic: _pendingTopic,
         ),
       );
     } catch (e) {
@@ -74,8 +93,11 @@ class DictionaryCubit extends Cubit<DictionaryState> {
     }
   }
 
-  /// Выбирает уровень (A1–C2) для просмотра слов.
+  /// Выбирает уровень (A1–C2) для просмотра слов (работает и до завершения загрузки).
   void selectLevel(String level) {
+    _pendingLevel = level;
+    _pendingTopic = null;
+
     if (state is DictionaryLoaded) {
       final currentState = state as DictionaryLoaded;
       emit(
@@ -88,8 +110,11 @@ class DictionaryCubit extends Cubit<DictionaryState> {
     }
   }
 
-  /// Выбирает тему для просмотра слов.
+  /// Выбирает тему для просмотра слов (работает и до завершения загрузки).
   void selectTopic(String topic) {
+    _pendingLevel = null;
+    _pendingTopic = topic;
+
     if (state is DictionaryLoaded) {
       final currentState = state as DictionaryLoaded;
       emit(
@@ -118,5 +143,18 @@ class DictionaryCubit extends Cubit<DictionaryState> {
       final currentState = state as DictionaryLoaded;
       emit(currentState.copyWith(searchQuery: query));
     }
+  }
+
+  /// Сбрасывает состояние кубита при выходе из аккаунта.
+  void reset() {
+    _pendingLevel = null;
+    _pendingTopic = null;
+    emit(const DictionaryLoading());
+  }
+
+  @override
+  Future<void> close() async {
+    await _cloudUpdatesSub?.cancel();
+    return super.close();
   }
 }

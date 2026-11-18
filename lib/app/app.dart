@@ -70,12 +70,22 @@ class _MyAppState extends State<MyApp> {
         ),
       ],
       child: BlocListener<AuthCubit, AuthState>(
-        listenWhen: (previous, current) =>
-            current is AuthSuccess && previous is! AuthSuccess,
+        listenWhen: (previous, current) {
+          if (current is AuthSuccess) {
+            return previous is! AuthSuccess || previous.uid != current.uid;
+          }
+          return previous is AuthSuccess;
+        },
         listener: (context, state) {
-          context.read<SwipeCubit>().loadWords();
-          context.read<DictionaryCubit>().loadWords();
-          context.read<ProfileCubit>().loadProfile();
+          if (state is AuthSuccess) {
+            context.read<SwipeCubit>().loadWords();
+            context.read<DictionaryCubit>().loadWords();
+            context.read<ProfileCubit>().loadProfile();
+          } else {
+            context.read<SwipeCubit>().reset();
+            context.read<DictionaryCubit>().reset();
+            context.read<ProfileCubit>().reset();
+          }
         },
         child: MaterialApp.router(
           title: 'My English App',

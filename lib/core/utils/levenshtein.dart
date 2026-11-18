@@ -30,12 +30,21 @@ int levenshteinDistance(String s1, String s2) {
 }
 
 /// Проверяет, принимается ли ввод [userInput] для целевого слова [targetWord]
-/// с допустимым числом опечаток [maxDistance] (по умолчанию <= 1).
+/// с допустимым числом опечаток [maxDistance].
+/// По умолчанию для коротких слов (<= 2 символов) требуется точное совпадение,
+/// а для остальных допускается не более 1 опечатки.
 bool isAnswerAccepted(
   String userInput,
   String targetWord, {
-  int maxDistance = 1,
+  int? maxDistance,
 }) {
-  if (userInput.trim().isEmpty) return false;
-  return levenshteinDistance(userInput, targetWord) <= maxDistance;
+  final normalizedInput = userInput.trim();
+  if (normalizedInput.isEmpty) return false;
+
+  final normalizedTarget = targetWord.trim();
+  final effectiveMaxDistance =
+      maxDistance ?? (normalizedTarget.length <= 2 ? 0 : 1);
+
+  return levenshteinDistance(normalizedInput, normalizedTarget) <=
+      effectiveMaxDistance;
 }

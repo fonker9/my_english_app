@@ -261,4 +261,9 @@ class AppTextStyles {
     fontWeight: FontWeight.w600,
     color: AppColors.white,
   );
+
+  /// Текст всплывающих уведомлений (SnackBar).
+  static const TextStyle snackbar = TextStyle(
+    color: AppColors.background,
+  );
 }

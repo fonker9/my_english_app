@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_english_app/core/di/service_locator.dart';
 import 'package:my_english_app/core/srs/srs_engine.dart';
-import 'package:my_english_app/data/models/user_stats.dart';
 import 'package:my_english_app/data/models/word.dart';
 import 'package:my_english_app/data/models/word_progress.dart';
 import 'package:my_english_app/data/repositories/auth_repository.dart';
@@ -22,7 +21,6 @@ class QuizCubit extends Cubit<QuizState> {
   final Random _random;
 
   Map<int, WordProgress> _progressMap = {};
-  UserStats _stats = UserStats.empty();
 
   QuizCubit(
     this._wordsRepository,
@@ -48,14 +46,12 @@ class QuizCubit extends Cubit<QuizState> {
       _progressMap = Map<int, WordProgress>.from(
         await _progressRepository.loadAllProgress(uid),
       );
-      _stats = await _progressRepository.loadStats(uid);
+      final stats = await _progressRepository.loadStats(uid);
 
       final now = DateTime.now();
-      if (_stats.lastStudyDate != null &&
-          !_isSameDay(_stats.lastStudyDate!, now) &&
-          (_stats.todayNewWords != 0 || _stats.todayReviews != 0)) {
-        _stats = _stats.copyWith(todayNewWords: 0, todayReviews: 0);
-        await _progressRepository.updateStats(uid, _stats);
+      final resetStats = SrsEngine.resetDailyCountersIfNeeded(stats, now);
+      if (resetStats != stats) {
+        await _progressRepository.updateStats(uid, resetStats);
       }
 
       final dueWords = allWords.where((word) {
@@ -112,13 +108,18 @@ class QuizCubit extends Cubit<QuizState> {
 
     final becameMastered =
         !wasMastered && updatedProgress.status == WordStatus.mastered;
-    _stats = _markStudyActivity(_stats, now).copyWith(
-      todayReviews: _stats.todayReviews + 1,
-      totalQuizCorrect: _stats.totalQuizCorrect + (isCorrect ? 1 : 0),
-      totalQuizWrong: _stats.totalQuizWrong + (isCorrect ? 0 : 1),
-      totalWordsLearned: _stats.totalWordsLearned + (becameMastered ? 1 : 0),
+    final currentStats = SrsEngine.resetDailyCountersIfNeeded(
+      _progressRepository.getLocalStats(uid),
+      now,
     );
-    unawaited(_progressRepository.updateStats(uid, _stats));
+    final updatedStats = SrsEngine.markStudyActivity(currentStats, now).copyWith(
+      todayReviews: currentStats.todayReviews + 1,
+      totalQuizCorrect: currentStats.totalQuizCorrect + (isCorrect ? 1 : 0),
+      totalQuizWrong: currentStats.totalQuizWrong + (isCorrect ? 0 : 1),
+      totalWordsLearned:
+          currentStats.totalWordsLearned + (becameMastered ? 1 : 0),
+    );
+    unawaited(_progressRepository.updateStats(uid, updatedStats));
 
     final updatedWrongWords = isCorrect
         ? currentState.wrongWords
@@ -229,39 +230,5 @@ class QuizCubit extends Cubit<QuizState> {
         distractors.add(text);
       }
     }
-  }
-
-  static bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  static bool _isYesterday(DateTime date, DateTime now) {
-    final today = DateTime(now.year, now.month, now.day);
-    final target = DateTime(date.year, date.month, date.day);
-    return today.difference(target).inDays == 1;
-  }
-
-  static UserStats _markStudyActivity(UserStats currentStats, DateTime now) {
-    final lastDate = currentStats.lastStudyDate;
-    int newStreak;
-
-    if (lastDate != null && _isSameDay(lastDate, now)) {
-      newStreak =
-          currentStats.currentStreak > 0 ? currentStats.currentStreak : 1;
-    } else if (lastDate != null && _isYesterday(lastDate, now)) {
-      newStreak = currentStats.currentStreak + 1;
-    } else {
-      newStreak = 1;
-    }
-
-    final newLongest = newStreak > currentStats.longestStreak
-        ? newStreak
-        : currentStats.longestStreak;
-
-    return currentStats.copyWith(
-      currentStreak: newStreak,
-      longestStreak: newLongest,
-      lastStudyDate: now,
-    );
   }
 }

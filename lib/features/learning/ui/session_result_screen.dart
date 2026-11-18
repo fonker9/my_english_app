@@ -6,7 +6,9 @@ import 'package:my_english_app/app/theme/app_colors.dart';
 import 'package:my_english_app/app/theme/app_text_styles.dart';
 import 'package:my_english_app/core/utils/russian_plurals.dart';
 import 'package:my_english_app/data/models/word.dart';
+import 'package:my_english_app/features/dictionary/cubit/dictionary_cubit.dart';
 import 'package:my_english_app/features/learning/cubit/swipe_cubit.dart';
+import 'package:my_english_app/features/profile/cubit/profile_cubit.dart';
 
 /// Итоговые данные завершённой учебной сессии для передачи на [SessionResultScreen].
 class SessionResult extends Equatable {
@@ -189,7 +191,12 @@ class SessionResultScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               ElevatedButton(
-                onPressed: () => context.go('/home'),
+                onPressed: () {
+                  context.read<ProfileCubit>().loadProfile();
+                  context.read<DictionaryCubit>().refreshWords();
+                  context.read<SwipeCubit>().refreshWords();
+                  context.go('/home');
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.background,

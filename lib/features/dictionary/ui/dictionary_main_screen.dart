@@ -14,7 +14,7 @@ class DictionaryMainScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Scaffold( 
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: BlocBuilder<DictionaryCubit, DictionaryState>(
@@ -360,7 +360,7 @@ class _ModeTabButton extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.transparent,
+          color: isSelected ? AppColors.primary : AppColors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Center(

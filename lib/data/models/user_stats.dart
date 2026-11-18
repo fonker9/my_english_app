@@ -33,6 +33,10 @@ class UserStats extends Equatable {
   @HiveField(7)
   final int totalQuizWrong;
 
+  /// Локальный флаг синхронизации статистики с Firestore (не отправляется в облако).
+  @HiveField(8)
+  final bool isSynced;
+
   const UserStats({
     this.currentStreak = 0,
     this.longestStreak = 0,
@@ -42,6 +46,7 @@ class UserStats extends Equatable {
     this.totalWordsLearned = 0,
     this.totalQuizCorrect = 0,
     this.totalQuizWrong = 0,
+    this.isSynced = true,
   });
 
   /// Пустая начальная статистика нового пользователя.
@@ -57,6 +62,7 @@ class UserStats extends Equatable {
     int? totalWordsLearned,
     int? totalQuizCorrect,
     int? totalQuizWrong,
+    bool? isSynced,
   }) {
     return UserStats(
       currentStreak: currentStreak ?? this.currentStreak,
@@ -69,6 +75,7 @@ class UserStats extends Equatable {
       totalWordsLearned: totalWordsLearned ?? this.totalWordsLearned,
       totalQuizCorrect: totalQuizCorrect ?? this.totalQuizCorrect,
       totalQuizWrong: totalQuizWrong ?? this.totalQuizWrong,
+      isSynced: isSynced ?? this.isSynced,
     );
   }
 
@@ -87,6 +94,7 @@ class UserStats extends Equatable {
       totalWordsLearned: (data['totalWordsLearned'] as num?)?.toInt() ?? 0,
       totalQuizCorrect: (data['totalQuizCorrect'] as num?)?.toInt() ?? 0,
       totalQuizWrong: (data['totalQuizWrong'] as num?)?.toInt() ?? 0,
+      isSynced: true,
     );
   }
 
@@ -124,5 +132,6 @@ class UserStats extends Equatable {
         totalWordsLearned,
         totalQuizCorrect,
         totalQuizWrong,
+        isSynced,
       ];
 }

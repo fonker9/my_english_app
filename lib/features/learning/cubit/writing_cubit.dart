@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_english_app/core/di/service_locator.dart';
 import 'package:my_english_app/core/srs/srs_engine.dart';
 import 'package:my_english_app/core/utils/levenshtein.dart';
-import 'package:my_english_app/data/models/user_stats.dart';
 import 'package:my_english_app/data/models/word_progress.dart';
 import 'package:my_english_app/data/repositories/auth_repository.dart';
 import 'package:my_english_app/data/repositories/progress_repository.dart';
@@ -21,7 +20,6 @@ class WritingCubit extends Cubit<WritingState> {
   final Random _random;
 
   Map<int, WordProgress> _progressMap = {};
-  UserStats _stats = UserStats.empty();
 
   WritingCubit(
     this._wordsRepository,
@@ -47,13 +45,12 @@ class WritingCubit extends Cubit<WritingState> {
       _progressMap = Map<int, WordProgress>.from(
         await _progressRepository.loadAllProgress(uid),
       );
-      _stats = await _progressRepository.loadStats(uid);
+      final stats = await _progressRepository.loadStats(uid);
 
       final now = DateTime.now();
-      final resetStats = SrsEngine.resetDailyCountersIfNeeded(_stats, now);
-      if (resetStats != _stats) {
-        _stats = resetStats;
-        await _progressRepository.updateStats(uid, _stats);
+      final resetStats = SrsEngine.resetDailyCountersIfNeeded(stats, now);
+      if (resetStats != stats) {
+        await _progressRepository.updateStats(uid, resetStats);
       }
 
       final dueWords = allWords.where((word) {
@@ -75,16 +72,15 @@ class WritingCubit extends Cubit<WritingState> {
     }
   }
 
-  /// Проверяет введённое слово [input] (допускается расстояние Левенштейна <= 1).
+  /// Проверяет введённое слово [input] (допускается не более 1 опечатки для слов >= 3 символов).
   void checkAnswer(String input) {
     if (state is! WritingLoaded) return;
     final currentState = state as WritingLoaded;
-    if (currentState.isAnswered) return;
+    if (currentState.isAnswered || input.trim().isEmpty) return;
 
     final isCorrect = isAnswerAccepted(
       input,
       currentState.currentWord.en,
-      maxDistance: 1,
     );
     _processResult(
       currentState: currentState,
@@ -135,13 +131,18 @@ class WritingCubit extends Cubit<WritingState> {
 
     final becameMastered =
         !wasMastered && updatedProgress.status == WordStatus.mastered;
-    _stats = SrsEngine.markStudyActivity(_stats, now).copyWith(
-      todayReviews: _stats.todayReviews + 1,
-      totalQuizCorrect: _stats.totalQuizCorrect + (isCorrect ? 1 : 0),
-      totalQuizWrong: _stats.totalQuizWrong + (isCorrect ? 0 : 1),
-      totalWordsLearned: _stats.totalWordsLearned + (becameMastered ? 1 : 0),
+    final currentStats = SrsEngine.resetDailyCountersIfNeeded(
+      _progressRepository.getLocalStats(uid),
+      now,
     );
-    unawaited(_progressRepository.updateStats(uid, _stats));
+    final updatedStats = SrsEngine.markStudyActivity(currentStats, now).copyWith(
+      todayReviews: currentStats.todayReviews + 1,
+      totalQuizCorrect: currentStats.totalQuizCorrect + (isCorrect ? 1 : 0),
+      totalQuizWrong: currentStats.totalQuizWrong + (isCorrect ? 0 : 1),
+      totalWordsLearned:
+          currentStats.totalWordsLearned + (becameMastered ? 1 : 0),
+    );
+    unawaited(_progressRepository.updateStats(uid, updatedStats));
 
     final updatedWrongWords = isCorrect
         ? currentState.wrongWords

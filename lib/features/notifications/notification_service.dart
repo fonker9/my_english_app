@@ -131,14 +131,21 @@ class NotificationService {
   }
 
   /// Применяет настройки уведомлений пользователя [settings].
-  Future<void> applySettings(UserSettings settings) async {
+  /// Возвращает `false`, если пользователь отклонил разрешение на показ уведомлений.
+  Future<bool> applySettings(UserSettings settings) async {
     if (settings.notificationsEnabled) {
-      await requestPermissions();
+      final granted = await requestPermissions();
+      if (!granted) {
+        await cancelAll();
+        return false;
+      }
       await scheduleDailyReminder(
         settings.notificationTime ?? const TimeOfDay(hour: 20, minute: 0),
       );
+      return true;
     } else {
       await cancelAll();
+      return true;
     }
   }
 
@@ -148,14 +155,34 @@ class NotificationService {
     _tzInitialized = true;
 
     final now = DateTime.now();
-    final targetOffsetMs = now.timeZoneOffset.inMilliseconds;
     final nowMs = now.millisecondsSinceEpoch;
+    final targetOffsetMs = now.timeZoneOffset.inMilliseconds;
 
+    // Учитываем зимнее и летнее смещение, чтобы не выбрать пояс с другим правилом DST.
+    final janDate = DateTime(now.year, 1, 1);
+    final julDate = DateTime(now.year, 7, 1);
+    final janOffsetMs = janDate.timeZoneOffset.inMilliseconds;
+    final julOffsetMs = julDate.timeZoneOffset.inMilliseconds;
+    final janMs = janDate.millisecondsSinceEpoch;
+    final julMs = julDate.millisecondsSinceEpoch;
+
+    tz.Location? currentOffsetFallback;
     for (final location in tz.timeZoneDatabase.locations.values) {
-      if (location.timeZone(nowMs).offset.inMilliseconds == targetOffsetMs) {
+      if (location.timeZone(nowMs).offset.inMilliseconds != targetOffsetMs) {
+        continue;
+      }
+      currentOffsetFallback ??= location;
+
+      final locJanMs = location.timeZone(janMs).offset.inMilliseconds;
+      final locJulMs = location.timeZone(julMs).offset.inMilliseconds;
+      if (locJanMs == janOffsetMs && locJulMs == julOffsetMs) {
         tz.setLocalLocation(location);
         return;
       }
+    }
+
+    if (currentOffsetFallback != null) {
+      tz.setLocalLocation(currentOffsetFallback);
     }
   }
 }

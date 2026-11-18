@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:my_english_app/app/theme/app_colors.dart';
 import 'package:my_english_app/app/theme/app_text_styles.dart';
+import 'package:my_english_app/core/utils/russian_plurals.dart';
 import 'package:my_english_app/features/auth/cubit/auth_cubit.dart';
 import 'package:my_english_app/features/profile/cubit/profile_cubit.dart';
 import 'package:my_english_app/features/profile/cubit/profile_state.dart';
@@ -125,7 +126,8 @@ class ProfileScreen extends StatelessWidget {
                       icon: Icons.menu_book_rounded,
                       iconColor: AppColors.secondary,
                       label: 'Всего выучено',
-                      value: '${stats.totalWordsLearned} слов',
+                      value:
+                          RussianPlurals.wordsWithCount(stats.totalWordsLearned),
                     ),
                     const SizedBox(height: 12),
 

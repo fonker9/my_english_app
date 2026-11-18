@@ -179,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               backgroundColor: AppColors.primary,
                               content: Text(
                                 state.error,
-                                style: const TextStyle(color: AppColors.background),
+                                style: AppTextStyles.snackbar,
                               ),
                             ),
                           );

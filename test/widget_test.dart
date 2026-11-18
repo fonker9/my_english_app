@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:my_english_app/core/srs/srs_engine.dart';
 import 'package:my_english_app/core/sync/sync_service.dart';
@@ -33,6 +36,7 @@ import 'package:my_english_app/features/learning/cubit/swipe_state.dart';
 import 'package:my_english_app/features/learning/cubit/writing_cubit.dart';
 import 'package:my_english_app/features/learning/cubit/writing_state.dart';
 import 'package:my_english_app/features/learning/ui/session_result_screen.dart';
+import 'package:my_english_app/features/learning/ui/swipe_screen.dart';
 import 'package:my_english_app/features/notifications/notification_service.dart';
 import 'package:my_english_app/features/profile/cubit/profile_cubit.dart';
 import 'package:my_english_app/features/profile/cubit/profile_state.dart';
@@ -107,6 +111,9 @@ class _FakeWordsRepository implements WordsRepository {
 class _FakeProgressRepository implements ProgressRepository {
   final Map<int, WordProgress> progressMap;
   UserStats stats;
+  final StreamController<String> _cloudUpdatesController =
+      StreamController<String>.broadcast();
+  int loadAllCalls = 0;
 
   _FakeProgressRepository({
     Map<int, WordProgress>? progressMap,
@@ -114,12 +121,27 @@ class _FakeProgressRepository implements ProgressRepository {
   })  : progressMap = progressMap ?? {},
         stats = stats ?? UserStats.empty();
 
+  void emitCloudUpdate(String uid) {
+    _cloudUpdatesController.add(uid);
+  }
+
+  @override
+  Stream<String> get cloudUpdates => _cloudUpdatesController.stream;
+
+  @override
+  Map<int, WordProgress> getLocalProgress(String uid) => progressMap;
+
+  @override
+  UserStats getLocalStats(String uid) => stats;
+
   @override
   Future<List<int>> getWordsDueForReview(String uid) async => [];
 
   @override
-  Future<Map<int, WordProgress>> loadAllProgress(String uid) async =>
-      progressMap;
+  Future<Map<int, WordProgress>> loadAllProgress(String uid) async {
+    loadAllCalls++;
+    return progressMap;
+  }
 
   @override
   Future<UserStats> loadStats(String uid) async => stats;
@@ -618,6 +640,9 @@ void main() {
       expect(isAnswerAccepted('aple', 'apple'), isTrue);
       expect(isAnswerAccepted('Apple', 'apple'), isTrue);
       expect(isAnswerAccepted('apl', 'apple'), isFalse);
+      // Для сверхкоротких слов (<= 2 букв) опечатки не допускаются
+      expect(isAnswerAccepted('to', 'go'), isFalse);
+      expect(isAnswerAccepted('go', 'go'), isTrue);
     });
 
     test('WritingCubit принимает опечатку <= 1, обрабатывает skipWord и завершает сессию', () async {
@@ -790,4 +815,253 @@ void main() {
       expect(tomorrow, DateTime(2026, 11, 18, 19, 0));
     });
   });
+
+  group('Регрессионные тесты исправленных багов', () {
+    testWidgets('SwipeScreen не падает если осталось ровно 1 unseen слово', (tester) async {
+      final cubit = SwipeCubit(
+        _FakeWordsRepository(const [
+          Word(id: 1, en: 'apple', ru: 'яблоко', level: 'a1'),
+        ]),
+        _FakeProgressRepository(),
+        _FakeSettingsRepository(const UserSettings(dailyNewWordsGoal: 5)),
+        _FakeAuthRepository(),
+      );
+      await cubit.loadWords();
+      expect(cubit.state, isA<SwipeLoaded>());
+
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, _) => const SwipeScreen(),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        BlocProvider<SwipeCubit>.value(
+          value: cubit,
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('apple'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      router.dispose();
+      await tester.runAsync(() => cubit.close());
+    });
+
+    test('DictionaryCubit применяет отложенный выбор категории при загрузке и обновляется по cloudUpdates', () async {
+      final progressRepo = _FakeProgressRepository();
+      final cubit = DictionaryCubit(
+        _FakeWordsRepository(const [
+          Word(id: 1, en: 'apple', ru: 'яблоко', level: 'a1', topic: 'food'),
+          Word(id: 2, en: 'challenge', ru: 'вызов', level: 'b2', topic: 'work'),
+        ]),
+        progressRepo,
+        _FakeAuthRepository(),
+      );
+
+      // Выбор уровня до завершения loadWords() не должен теряться
+      cubit.selectCategory('a1');
+      await cubit.loadWords();
+
+      expect(cubit.state, isA<DictionaryLoaded>());
+      var loaded = cubit.state as DictionaryLoaded;
+      expect(loaded.selectedLevel, 'A1');
+      expect(loaded.newWordsFiltered.map((w) => w.id), [1]);
+
+      // Фоновое обновление из облака обновляет UI без повторного вызова loadAllProgress
+      final callsBefore = progressRepo.loadAllCalls;
+      progressRepo.progressMap[1] = const WordProgress(
+        wordId: 1,
+        status: WordStatus.mastered,
+      );
+      progressRepo.emitCloudUpdate('user_1');
+      await Future<void>.delayed(Duration.zero);
+
+      loaded = cubit.state as DictionaryLoaded;
+      expect(loaded.masteredWordsFiltered.map((w) => w.id), [1]);
+      expect(progressRepo.loadAllCalls, callsBefore);
+
+      await cubit.close();
+    });
+
+    test('WritingCubit игнорирует пустой ввод без штрафа SRS', () async {
+      final pastDue = DateTime.now().subtract(const Duration(hours: 1));
+      final progressRepo = _FakeProgressRepository(
+        progressMap: {
+          1: WordProgress(
+            wordId: 1,
+            status: WordStatus.review,
+            consecutiveCorrect: 2,
+            nextReview: pastDue,
+          ),
+        },
+        stats: UserStats(lastStudyDate: DateTime.now()),
+      );
+      final cubit = WritingCubit(
+        _FakeWordsRepository(const [
+          Word(id: 1, en: 'apple', ru: 'яблоко', level: 'a1'),
+        ]),
+        progressRepo,
+        _FakeAuthRepository(),
+      );
+
+      await cubit.startSession();
+      cubit.checkAnswer('   ');
+
+      final loaded = cubit.state as WritingLoaded;
+      expect(loaded.isAnswered, isFalse);
+      expect(loaded.wrongCount, 0);
+      expect(progressRepo.progressMap[1]?.consecutiveCorrect, 2);
+
+      await cubit.close();
+    });
+
+    test('ProfileCubit автоматически обновляет статистику при cloudUpdates', () async {
+      final progressRepo = _FakeProgressRepository(
+        stats: const UserStats(currentStreak: 1, totalWordsLearned: 1),
+      );
+      final cubit = ProfileCubit(progressRepo, _FakeAuthRepository());
+
+      await cubit.loadProfile();
+      expect((cubit.state as ProfileLoaded).stats.currentStreak, 1);
+
+      progressRepo.stats = const UserStats(
+        currentStreak: 5,
+        totalWordsLearned: 10,
+      );
+      progressRepo.emitCloudUpdate('user_1');
+      await Future<void>.delayed(Duration.zero);
+
+      final updated = cubit.state as ProfileLoaded;
+      expect(updated.stats.currentStreak, 5);
+      expect(updated.stats.totalWordsLearned, 10);
+
+      await cubit.close();
+    });
+
+    test('SyncService дедуплицирует параллельные syncAll и сохраняет локальную статистику с isSynced = false', () async {
+      final tempDir = await Directory.systemTemp.createTemp('my_english_sync_');
+      try {
+        Hive.init(tempDir.path);
+        if (!Hive.isAdapterRegistered(0)) {
+          Hive.registerAdapter(WordProgressAdapter());
+        }
+        if (!Hive.isAdapterRegistered(1)) {
+          Hive.registerAdapter(UserStatsAdapter());
+        }
+
+        final progressBox =
+            await Hive.openBox<WordProgress>('sync_test_progress');
+        final statsBox = await Hive.openBox<UserStats>('sync_test_stats');
+        final localSource = HiveProgressSource(
+          progressBox: progressBox,
+          statsBox: statsBox,
+        );
+
+        final today = DateTime(2026, 11, 18, 12, 0);
+        // Оффлайн-обновление с той же датой, но isSynced == false
+        await localSource.putStats(
+          'u1',
+          UserStats(
+            currentStreak: 3,
+            todayReviews: 5,
+            lastStudyDate: today,
+            isSynced: false,
+          ),
+        );
+
+        final remoteFake = _FakeRemoteProgressSource(
+          remoteStats: UserStats(
+            currentStreak: 2,
+            todayReviews: 1,
+            lastStudyDate: today,
+          ),
+        );
+        final syncService = SyncService(localSource, remoteFake);
+
+        final futures = await Future.wait([
+          syncService.syncAll('u1'),
+          syncService.syncAll('u1'),
+        ]);
+
+        expect(futures.length, 2);
+        // Повторный параллельный syncAll переиспользовал один запрос к Firestore
+        expect(remoteFake.fetchProgressCalls, 1);
+        expect(remoteFake.savedStats?.todayReviews, 5);
+        expect(localSource.getStats('u1').isSynced, isTrue);
+
+        await progressBox.close();
+        await statsBox.close();
+      } finally {
+        if (tempDir.existsSync()) {
+          tempDir.deleteSync(recursive: true);
+        }
+      }
+    });
+
+    test('assets/words.json содержит 3000+ уникальных слов, все 6 уровней и исходные id 1..15', () {
+      final raw = File('assets/words.json').readAsStringSync();
+      final list = (jsonDecode(raw) as List<dynamic>)
+          .map((e) => Word.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      expect(list.length, greaterThanOrEqualTo(3000));
+
+      final ids = list.map((w) => w.id).toSet();
+      expect(ids.length, list.length);
+
+      final enKeys = list.map((w) => w.en.trim().toLowerCase()).toSet();
+      expect(enKeys.length, list.length);
+
+      final levels = list.map((w) => w.level).toSet();
+      expect(levels, containsAll(['a1', 'a2', 'b1', 'b2', 'c1', 'c2']));
+
+      expect(list[0].id, 1);
+      expect(list[0].en, 'apple');
+      expect(list[14].id, 15);
+      expect(list[14].en, 'memory');
+    });
+  });
+}
+
+class _FakeRemoteProgressSource extends FirestoreProgressSource {
+  int fetchProgressCalls = 0;
+  final UserStats? remoteStats;
+  UserStats? savedStats;
+
+  _FakeRemoteProgressSource({this.remoteStats});
+
+  @override
+  Future<Map<int, WordProgress>> fetchAllProgress(String uid) async {
+    fetchProgressCalls++;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    return {};
+  }
+
+  @override
+  Future<Map<int, WordProgress>> migrateLegacyFormatIfNeeded(
+    String uid, {
+    Map<int, WordProgress> existingRemote = const {},
+  }) async {
+    return {};
+  }
+
+  @override
+  Future<void> setBatchWordProgress(
+    String uid,
+    List<WordProgress> items,
+  ) async {}
+
+  @override
+  Future<UserStats?> fetchStats(String uid) async => remoteStats;
+
+  @override
+  Future<void> setStats(String uid, UserStats stats) async {
+    savedStats = stats;
+  }
 }

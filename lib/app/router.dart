@@ -105,8 +105,10 @@ GoRouter createAppRouter(AuthCubit authCubit) {
       ),
       GoRoute(
         path: '/learning/result',
+        redirect: (_, state) =>
+            state.extra is SessionResult ? null : '/learning',
         builder: (_, state) => SessionResultScreen(
-          extra: state.extra as SessionResult,
+          extra: state.extra! as SessionResult,
         ),
       ),
 

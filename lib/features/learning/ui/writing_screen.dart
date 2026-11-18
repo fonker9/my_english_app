@@ -56,6 +56,7 @@ class _WritingViewState extends State<_WritingView> {
   void _submitAnswer(WritingCubit cubit) {
     final state = cubit.state;
     if (state is! WritingLoaded || state.isAnswered) return;
+    if (_textController.text.trim().isEmpty) return;
 
     cubit.checkAnswer(_textController.text);
     final updatedState = cubit.state;
@@ -253,22 +254,29 @@ class _WritingViewState extends State<_WritingView> {
                     ],
 
                     const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: state.isAnswered
-                          ? null
-                          : () => _submitAnswer(context.read<WritingCubit>()),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.background,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: const Text(
-                        'Проверить',
-                        style: AppTextStyles.buttonMedium,
-                      ),
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _textController,
+                      builder: (context, textValue, _) {
+                        final canSubmit = !state.isAnswered &&
+                            textValue.text.trim().isNotEmpty;
+                        return ElevatedButton(
+                          onPressed: canSubmit
+                              ? () => _submitAnswer(context.read<WritingCubit>())
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.background,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Text(
+                            'Проверить',
+                            style: AppTextStyles.buttonMedium,
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextButton(

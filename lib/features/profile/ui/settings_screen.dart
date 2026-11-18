@@ -43,13 +43,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _saveSettings(UserSettings updated) async {
+    var effectiveSettings = updated;
     setState(() {
-      _settings = updated;
+      _settings = effectiveSettings;
     });
-    await _settingsRepository.saveSettings(updated);
+    await _settingsRepository.saveSettings(effectiveSettings);
+
     if (sl.isRegistered<NotificationService>()) {
-      await sl<NotificationService>().applySettings(updated);
+      final granted =
+          await sl<NotificationService>().applySettings(effectiveSettings);
+      if (effectiveSettings.notificationsEnabled && !granted && mounted) {
+        effectiveSettings = effectiveSettings.copyWith(
+          notificationsEnabled: false,
+        );
+        setState(() {
+          _settings = effectiveSettings;
+        });
+        await _settingsRepository.saveSettings(effectiveSettings);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: AppColors.primary,
+              content: Text(
+                'Нет разрешения на уведомления. Разрешите их в настройках устройства.',
+                style: AppTextStyles.snackbar,
+              ),
+            ),
+          );
+        }
+      }
     }
+
     if (!mounted) return;
     context.read<ProfileCubit>().loadProfile();
     context.read<SwipeCubit>().refreshWords();

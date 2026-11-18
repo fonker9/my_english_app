@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_english_app/core/di/service_locator.dart';
+import 'package:my_english_app/core/srs/srs_engine.dart';
 import 'package:my_english_app/data/models/user_settings.dart';
 import 'package:my_english_app/data/models/word_progress.dart';
 import 'package:my_english_app/data/repositories/auth_repository.dart';
@@ -13,6 +15,8 @@ class ProfileCubit extends Cubit<ProfileState> {
   final AuthRepository _authRepository;
   final SettingsRepository? _settingsRepository;
 
+  StreamSubscription<String>? _cloudUpdatesSub;
+
   ProfileCubit(
     this._progressRepository,
     this._authRepository, [
@@ -21,12 +25,21 @@ class ProfileCubit extends Cubit<ProfileState> {
             (sl.isRegistered<SettingsRepository>()
                 ? sl<SettingsRepository>()
                 : null),
-        super(const ProfileLoading());
+        super(const ProfileLoading()) {
+    _cloudUpdatesSub = _progressRepository.cloudUpdates.listen((updatedUid) {
+      if (isClosed || updatedUid != _authRepository.currentUid) return;
+      unawaited(_loadProfileInternal(triggerSync: false));
+    });
+  }
 
   /// Загружает статистику, прогресс слов, цели и данные пользователя.
-  Future<void> loadProfile() async {
+  Future<void> loadProfile() => _loadProfileInternal(triggerSync: true);
+
+  Future<void> _loadProfileInternal({required bool triggerSync}) async {
     try {
-      emit(const ProfileLoading());
+      if (state is! ProfileLoaded) {
+        emit(const ProfileLoading());
+      }
 
       final uid = _authRepository.currentUid;
       if (uid == null) {
@@ -34,18 +47,21 @@ class ProfileCubit extends Cubit<ProfileState> {
         return;
       }
 
-      var stats = await _progressRepository.loadStats(uid);
+      var stats = triggerSync
+          ? await _progressRepository.loadStats(uid)
+          : _progressRepository.getLocalStats(uid);
       final now = DateTime.now();
 
       // Сбрасываем дневные счётчики при наступлении нового календарного дня.
-      if (stats.lastStudyDate != null &&
-          !_isSameDay(stats.lastStudyDate!, now) &&
-          (stats.todayNewWords != 0 || stats.todayReviews != 0)) {
-        stats = stats.copyWith(todayNewWords: 0, todayReviews: 0);
+      final resetStats = SrsEngine.resetDailyCountersIfNeeded(stats, now);
+      if (resetStats != stats) {
+        stats = resetStats;
         await _progressRepository.updateStats(uid, stats);
       }
 
-      final progressMap = await _progressRepository.loadAllProgress(uid);
+      final progressMap = triggerSync
+          ? await _progressRepository.loadAllProgress(uid)
+          : _progressRepository.getLocalProgress(uid);
       final dueWords = await _progressRepository.getWordsDueForReview(uid);
       final settings = _settingsRepository != null
           ? await _settingsRepository.loadSettings()
@@ -90,7 +106,14 @@ class ProfileCubit extends Cubit<ProfileState> {
     }
   }
 
-  static bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+  /// Сбрасывает состояние профиля при выходе из аккаунта.
+  void reset() {
+    emit(const ProfileLoading());
+  }
+
+  @override
+  Future<void> close() async {
+    await _cloudUpdatesSub?.cancel();
+    return super.close();
   }
 }

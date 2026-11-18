@@ -23,13 +23,14 @@ class UserStatsAdapter extends TypeAdapter<UserStats> {
       totalWordsLearned: (fields[5] as int?) ?? 0,
       totalQuizCorrect: (fields[6] as int?) ?? 0,
       totalQuizWrong: (fields[7] as int?) ?? 0,
+      isSynced: (fields[8] as bool?) ?? true,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserStats obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.currentStreak)
       ..writeByte(1)
@@ -45,7 +46,9 @@ class UserStatsAdapter extends TypeAdapter<UserStats> {
       ..writeByte(6)
       ..write(obj.totalQuizCorrect)
       ..writeByte(7)
-      ..write(obj.totalQuizWrong);
+      ..write(obj.totalQuizWrong)
+      ..writeByte(8)
+      ..write(obj.isSynced);
   }
 
   @override

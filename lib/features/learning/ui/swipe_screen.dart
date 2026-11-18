@@ -129,9 +129,15 @@ class _SwipeScreenState extends State<SwipeScreen> {
 
                     Expanded(
                       child: CardSwiper(
+                        key: ValueKey(
+                          state.words.map((w) => w.id).join(','),
+                        ),
                         controller: _swiperController,
                         cardsCount: state.words.length,
-                        initialIndex: 0,
+                        initialIndex: state.currentIndex,
+                        numberOfCardsDisplayed:
+                            state.words.length < 2 ? 1 : 2,
+                        isLoop: false,
                         allowedSwipeDirection: const AllowedSwipeDirection.only(
                           left: true,
                           right: true,

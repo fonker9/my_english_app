@@ -37,6 +37,9 @@ class AppColors {
   /// Белый цвет для текста на цветных кнопках и бейджах.
   static const Color white = Colors.white;
 
+  /// Прозрачный цвет (например, для неактивных вкладок переключателя).
+  static const Color transparent = Colors.transparent;
+
   /// Базовый цвет тени.
   static const Color shadow = Colors.black;
 
